@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "MyStackOverflow.AppHost/MyStackOverflow.AppHost.csproj"
+  }
+}
