@@ -4,6 +4,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyStackOverflow.AppHost", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyStackOverflow.ServiceDefaults", "MyStackOverflow.ServiceDefaults\MyStackOverflow.ServiceDefaults.csproj", "{2EA8EC22-144C-4156-B26B-DD458588EDE4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{27725E73-F361-4291-9428-2F40B0BF92EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuestionService", "QuestionService\QuestionService.csproj", "{B6E634F3-F73A-461F-B313-C149E04E76A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,12 @@ Global
 		{2EA8EC22-144C-4156-B26B-DD458588EDE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2EA8EC22-144C-4156-B26B-DD458588EDE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2EA8EC22-144C-4156-B26B-DD458588EDE4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6E634F3-F73A-461F-B313-C149E04E76A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B6E634F3-F73A-461F-B313-C149E04E76A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B6E634F3-F73A-461F-B313-C149E04E76A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B6E634F3-F73A-461F-B313-C149E04E76A2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B6E634F3-F73A-461F-B313-C149E04E76A2} = {27725E73-F361-4291-9428-2F40B0BF92EA}
 	EndGlobalSection
 EndGlobal
