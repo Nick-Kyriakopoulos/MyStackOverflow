@@ -1,8 +1,13 @@
+using System.Net.Sockets;
+using Common;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Polly;
 using QuestionService.Data;
 using QuestionService.Services;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using Wolverine;
 using Wolverine.RabbitMQ;
 
@@ -15,47 +20,15 @@ builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TagService>();
-
-builder.Services.AddAuthentication()
-    .AddKeycloakJwtBearer(serviceName: "keycloak" , realm: "MyStackOverflow" , options =>
-    {
-        options.RequireHttpsMetadata = false;
-
-        // TODO: Fix auth for production before going live.
-        // Steps when ready:
-        //   1. Create a dedicated API client in Keycloak (e.g. "question-api")
-        //   2. Add an Audience mapper on the token-issuing client so aud = "question-api"
-        //   3. Remove the IsDevelopment() block below and set: options.Audience = "question-api"
-        //   4. Remove hardcoded Authority/MetadataAddress — let Aspire service discovery resolve them
-        if (builder.Environment.IsDevelopment())
-        {
-            options.Authority = "http://localhost:6001/realms/MyStackOverflow";
-            options.MetadataAddress = "http://localhost:6001/realms/MyStackOverflow/.well-known/openid-configuration";
-            options.TokenValidationParameters.ValidateAudience = false;
-            options.TokenValidationParameters.ValidateIssuer = false;
-        }
-        else
-        {
-            options.Audience = "MyStackOverflow";
-        }
-    });
+builder.Services.AddKeyCloakAuthentication();
 
 builder.AddNpgsqlDbContext<QuestionDbContext>("questionDb");
 
-builder.Services.AddOpenTelemetry().WithTracing(traceProviderBuilder =>
+await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
-    traceProviderBuilder.SetResourceBuilder(ResourceBuilder.CreateDefault()
-            .AddService(builder.Environment.ApplicationName))
-        .AddSource("Wolverine");
-});
-
-builder.Host.UseWolverine(opts =>
-{
-    opts.UseRabbitMqUsingNamedConnection("messaging").AutoProvision();
     opts.PublishAllMessages().ToRabbitExchange("questions");
+    opts.ApplicationAssembly = typeof(Program).Assembly;
 });
-
-
 
 var app = builder.Build();
 

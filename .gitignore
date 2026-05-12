@@ -1,5 +1,31 @@
+## Build outputs
 bin/
 obj/
 /packages/
-riderModule.iml
 /_ReSharper.Caches/
+
+## Rider / JetBrains
+riderModule.iml
+.idea/
+
+## Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## .NET secrets & environment
+infra/.env
+infra/**/.env
+infra/realms/MyStackOverflow-realm.json
+infra/.env.Production
+infra/**/.env.Production
+
+## Logs
+*.log
+logs/
+
+## OS files
+.DS_Store
+Thumbs.db
