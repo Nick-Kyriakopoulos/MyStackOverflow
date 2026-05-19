@@ -21,6 +21,24 @@ infra/**/.env
 infra/realms/MyStackOverflow-realm.json
 infra/.env.Production
 infra/**/.env.Production
+secrets.json
+**/secrets.json
+
+## Node / Next.js (webapp)
+webapp/node_modules/
+webapp/.next/
+webapp/out/
+webapp/build/
+webapp/.turbo/
+webapp/.vercel/
+webapp/coverage/
+webapp/*.tsbuildinfo
+webapp/next-env.d.ts
+
+## Webapp env files
+webapp/.env
+webapp/.env.local
+webapp/.env.*.local
 
 ## Logs
 *.log
@@ -29,3 +47,6 @@ logs/
 ## OS files
 .DS_Store
 Thumbs.db
+
+## Misc
+.heroui-docs/
