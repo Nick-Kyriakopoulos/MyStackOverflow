@@ -1,1 +1,0 @@
-Type check passes now. Fixed `webapp/src/components/nav/SearchInput.tsx:8-12` — `SearchField.Value` doesn't exist in this HeroUI v3 version; `value`/`onChange` are controlled props on the root `SearchField` element, and `onChange` receives the string directly rather than an event.
