@@ -1,8 +1,8 @@
 ﻿import Link from "next/link";
 import {AcademicCapIcon} from "@heroicons/react/24/solid";
-import {MagnifyingGlassIcon} from "@heroicons/react/24/outline";
-import {Button, InputGroup} from "@heroui/react";
+import {Button} from "@heroui/react";
 import ThemeToggle from "@/components/nav/ThemeToggle";
+import SearchInput from "@/components/nav/SearchInput";
 
 export default function TopNav() {
     return (
@@ -19,12 +19,8 @@ export default function TopNav() {
                         <Link href={'/'} >Contact</Link>
                     </nav>
                 </div>
-                <InputGroup className={'ml-6 w-full'} variant={'secondary'}>
-                    <InputGroup.Prefix>
-                        <MagnifyingGlassIcon className={'size-7 text-blue-500'} />
-                    </InputGroup.Prefix>
-                    <InputGroup.Input type={"search"} placeholder={'Search'} />
-                </InputGroup>
+                
+                <SearchInput />
 
                 <div className={'flex ml-auto basis-1/4 shrink-0 justify-end gap-3'}>
                     <ThemeToggle />

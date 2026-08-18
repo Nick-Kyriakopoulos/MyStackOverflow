@@ -1,24 +1,44 @@
-﻿'use client'
+﻿'use client';
 
-import {Select, ListBox} from "@heroui/react";
+import { useState } from "react";
+import { Select, ListBox } from "@heroui/react";
 
 type Props = {
     answerCount: number;
 }
 
-export default function AnswersHeader({answerCount}: Props) {
+const SORT_LABELS: Record<string, string> = {
+    highScore: 'Highest score (default)',
+    created: 'Date created',
+};
+
+export default function AnswersHeader({ answerCount }: Props) {
+    const [sortKey, setSortKey] = useState<string>('highScore');
+
     return (
-        <div className={'flex items-center justify-between pt-3 w-full px-6'}>
-            <div className={'text-2xl'}>{answerCount} {answerCount === 1 ? 'Answer' : 'Answers'}</div>
-            <div className={'flex items-center gap-3 justify-end w-[50%] ml-auto'}>
-                <Select aria-label={'Select sorting'}>
+        <div className="mt-6 flex items-center justify-between rounded-3xl border border-neutral-200/70 bg-linear-to-br from-white via-stone-50 to-green-50 px-6 py-5 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-purple-950/30">
+            <div>
+                <div className="text-2xl font-semibold tracking-tight">
+                    {answerCount} {answerCount === 1 ? 'Answer' : 'Answers'}
+                </div>
+                <p className="mt-1 text-sm text-neutral-600 dark:text-gray-300">
+                    Review the community responses and compare the most helpful explanations.
+                </p>
+            </div>
+            <div className="ml-auto flex items-center gap-3 justify-end">
+                <Select
+                    aria-label="Select sorting"
+                    value={sortKey}
+                    onChange={(key) => setSortKey(key as string)}
+                    className="min-w-60"
+                >
                     <Select.Trigger>
-                        <Select.Value>Highest score (default)</Select.Value>
+                        <Select.Value>{SORT_LABELS[sortKey]}</Select.Value>
                     </Select.Trigger>
                     <Select.Popover>
                         <ListBox>
-                            <ListBox.Item id={'highScore'}>Highest score (default)</ListBox.Item>
-                            <ListBox.Item id={'created'}>Date created</ListBox.Item>
+                            <ListBox.Item id="highScore">Highest score (default)</ListBox.Item>
+                            <ListBox.Item id="created">Date created</ListBox.Item>
                         </ListBox>
                     </Select.Popover>
                 </Select>

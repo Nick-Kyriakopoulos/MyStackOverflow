@@ -9,8 +9,8 @@ type Props = {
 export default function AnswerFooter({answer}: Props) {
     return (
         <div className={'flex justify-end mt-4'}>
-            <div className={'flex items-center gap-3 text-sm bg-gray-300 dark:bg-gray-700 rounded-xl px-4 py-3'}>
-                <div className={'w-8 h-8 rounded-full bg-green-900 dark:bg-purple-700 text-white text-xs font-semibold flex items-center justify-center'}>
+            <div className={'flex items-center gap-3 rounded-2xl bg-stone-100/90 px-4 py-3 text-sm dark:bg-gray-800/90'}>
+                <div className={'flex h-8 w-8 items-center justify-center rounded-full bg-green-900 text-xs font-semibold text-white dark:bg-purple-700'}>
                     {answer.userDisplayName.charAt(0).toUpperCase()}
                 </div>
                 <div className={'flex flex-col'}>
