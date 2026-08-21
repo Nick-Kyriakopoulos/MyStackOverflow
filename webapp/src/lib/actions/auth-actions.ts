@@ -1,6 +1,7 @@
 ﻿'use server';
 import {fetchClient} from "@/lib/fetchClient";
 import {auth, signOut} from "@/auth";
+import {getValidSession} from "@/lib/session";
 import {createKeycloakUser} from "@/lib/keycloakAdmin";
 import {redirect} from "next/navigation";
 
@@ -50,7 +51,9 @@ export async function logoutUser() {
 
 export async function getCurrentUser() {
     try{
-        const session = await auth();
+        // A session whose refresh failed must not render as signed in - the nav
+        // would show the user's name while every API call behind it 401s.
+        const session = await getValidSession();
         if (!session) {
             return null;
         }

@@ -67,6 +67,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return token;
             }
 
+            // A failed refresh is terminal: the refresh token is spent, expired
+            // or revoked, and expiresAt stays in the past. Without this guard
+            // every subsequent request retries a call that cannot succeed.
+            if (token.error === 'RefreshAccessTokenError') {
+                return token;
+            }
+
             // Expired - attempt to refresh it.
             return refreshAccessToken(token);
         },

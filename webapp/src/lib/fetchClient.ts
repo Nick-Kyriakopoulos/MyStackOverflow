@@ -1,5 +1,5 @@
 ﻿import {notFound} from "next/navigation";
-import {auth} from "@/auth";
+import {getValidSession} from "@/lib/session";
 
 export async function fetchClient<T>(url: string,
                     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -8,7 +8,11 @@ export async function fetchClient<T>(url: string,
     const {body, ...rest} = options;
     const apiUrl = process.env.API_URL;
     if (!apiUrl) throw new Error('Missing API URL');
-    const session = await auth();
+    // Deliberately not auth(): sending a token we already know is dead makes the
+    // API answer with Keycloak's raw "The token expired at ..." instead of
+    // something the user can act on. Omitting it yields a plain 401 - and public
+    // GETs keep working anonymously.
+    const session = await getValidSession();
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
