@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import {Button, Spinner, toast} from "@heroui/react";
+import {Button, Spinner} from "@heroui/react";
 import {triggerError} from "@/lib/actions/error-actions";
 import {useState, useTransition} from "react";
 import {handleError} from "@/lib/util";
@@ -23,7 +23,7 @@ export default function ErrorButtons() {
     }
 
     return (
-        <div className={'flex gap-6 items-center mt-6 w-full justify-center'}>
+        <div className={'flex gap-3'}>
             {[400, 401, 403, 404, 500].map(code =>(
                 <Button
                     onPress={ () => onClick(code) }
