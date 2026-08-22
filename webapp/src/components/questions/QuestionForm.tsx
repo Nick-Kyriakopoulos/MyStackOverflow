@@ -19,36 +19,56 @@ import {
 import {Controller, useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {useRouter} from "next/navigation";
-import {Tag} from "@/lib/types";
+import {Question, Tag} from "@/lib/types";
 import {questionSchema, QuestionSchema} from "@/lib/schemas/questionSchema";
-import {createQuestion} from "@/lib/actions/question-actions";
+import {createQuestion, updateQuestion} from "@/lib/actions/question-actions";
 import {handleError, successToast} from "@/lib/util";
 import RichTextEditor from "@/components/editor/RichTextEditor";
 
 type Props = {
     tags: Tag[];
+    // Present when editing an existing question; absent when asking a new one.
+    question?: Question;
 }
 
-export default function QuestionForm({tags}: Props) {
+export default function QuestionForm({tags, question}: Props) {
     const router = useRouter();
     const {contains} = useFilter({sensitivity: 'base'});
+    const isEditing = !!question;
 
     const {control, handleSubmit, formState: {errors, isSubmitting}} = useForm<QuestionSchema>({
         resolver: zodResolver(questionSchema),
         // Validate as the user corrects a field rather than only on submit -
         // the rich text editor has no native validation to fall back on.
         mode: 'onTouched',
-        defaultValues: {title: '', content: '', tags: []},
+        defaultValues: {
+            title: question?.title ?? '',
+            content: question?.content ?? '',
+            tags: question?.tagSlugs ?? [],
+        },
     });
 
     const onSubmit = async (data: QuestionSchema) => {
-        const {data: question, error} = await createQuestion(data);
+        if (isEditing) {
+            // A 204 carries no body, so there is nothing to read back - only the
+            // absence of an error tells us the update landed.
+            const {error} = await updateQuestion(question.id, data);
+
+            if (error) return handleError(error);
+
+            successToast('Your question has been updated.');
+            router.push(`/questions/${question.id}`);
+            router.refresh();
+            return;
+        }
+
+        const {data: created, error} = await createQuestion(data);
 
         if (error) return handleError(error);
 
-        if (question) {
+        if (created) {
             successToast('Your question has been posted.');
-            router.push(`/questions/${question.id}`);
+            router.push(`/questions/${created.id}`);
         }
     };
 
@@ -182,7 +202,9 @@ export default function QuestionForm({tags}: Props) {
                     isDisabled={isSubmitting}
                     className={'bg-green-900 dark:bg-purple-700 text-white shadow-sm'}
                 >
-                    {isSubmitting ? 'Posting...' : 'Post your question'}
+                    {isSubmitting
+                        ? (isEditing ? 'Saving...' : 'Posting...')
+                        : (isEditing ? 'Save changes' : 'Post your question')}
                 </Button>
             </div>
         </Form>

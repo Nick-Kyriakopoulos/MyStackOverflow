@@ -50,11 +50,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }),
     ],
     callbacks: {
-        async jwt({ token, account }) {
+        async jwt({ token, account, profile }) {
             // Initial sign-in: persist the tokens Keycloak issued.
             if (account) {
                 return {
                     ...token,
+                    // Keycloak's own user id. Without an adapter Auth.js puts a
+                    // freshly generated uuid in token.sub, which matches nothing
+                    // server-side - the API records this sub as AskerId.
+                    userId: profile?.sub ?? token.userId,
                     accessToken: account.access_token ?? token.accessToken,
                     refreshToken: account.refresh_token ?? token.refreshToken,
                     idToken: account.id_token ?? token.idToken,
@@ -81,6 +85,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             session.accessToken = token.accessToken;
             session.idToken = token.idToken;
             session.error = token.error;
+            // Deliberately not token.sub - see the jwt callback. Sessions issued
+            // before userId existed fall back to it and simply won't match,
+            // which fails closed: no edit/delete controls rather than wrong ones.
+            session.user.id = token.userId ?? token.sub ?? '';
             return session;
         },
     },

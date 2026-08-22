@@ -2,7 +2,12 @@
 
 import type {Editor} from '@tiptap/core';
 import {useEditorState} from '@tiptap/react';
+import {useRef, useState} from 'react';
 import clsx from 'clsx';
+import {PhotoIcon} from '@heroicons/react/24/outline';
+import {uploadImage} from '@/lib/actions/image-actions';
+import {ALLOWED_IMAGE_TYPES} from '@/lib/imageRules';
+import {errorToast} from '@/lib/util';
 
 type Props = {
     // Non-nullable on purpose: the parent only mounts this once the editor
@@ -13,6 +18,32 @@ type Props = {
 }
 
 export default function MenuBar({editor}: Props) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const onFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        // Reset immediately so picking the same file twice still fires onChange.
+        event.target.value = '';
+        if (!file) return;
+
+        setIsUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const {data, error} = await uploadImage(formData);
+
+            if (error) return errorToast(error);
+            if (!data) return;
+
+            editor.chain().focus().setImage({src: data.url, alt: file.name}).run();
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     // TipTap mutates the editor instance rather than replacing it, so React has
     // no reason to re-render on its own - useEditorState subscribes to the
     // transactions that change which marks are active.
@@ -81,6 +112,32 @@ export default function MenuBar({editor}: Props) {
                     {button.label}
                 </button>
             ))}
+
+            <span className={'mx-1 h-5 w-px bg-neutral-300 dark:bg-gray-700'}/>
+
+            <button
+                type={'button'}
+                title={'Insert image'}
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className={clsx(
+                    'flex min-w-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors',
+                    isUploading
+                        ? 'cursor-not-allowed opacity-40'
+                        : 'text-neutral-700 hover:bg-stone-200 dark:text-gray-300 dark:hover:bg-gray-800',
+                )}
+            >
+                <PhotoIcon className={'size-4'}/>
+                {isUploading ? 'Uploading...' : 'Image'}
+            </button>
+
+            <input
+                ref={fileInputRef}
+                type={'file'}
+                accept={ALLOWED_IMAGE_TYPES.join(',')}
+                className={'hidden'}
+                onChange={onFileSelected}
+            />
         </div>
     );
 }

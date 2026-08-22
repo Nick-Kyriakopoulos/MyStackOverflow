@@ -154,7 +154,10 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         var answer = await db.Answers.FindAsync(answerId);
         if (answer is null) return NotFound();
         if (answer.QuestionId != questionId) return BadRequest("Cannot update answer details");
-        
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId != answer.UserId) return Forbid();
+
         answer.Content = dto.Content;
         answer.UpdatedAt = DateTime.UtcNow;
         
@@ -170,7 +173,10 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         var question = await db.Questions.FindAsync(questionId);
         if (answer is null || question is null) return NotFound();
         if (answer.QuestionId != questionId || answer.Accepted) return BadRequest("Cannot delete this answer");
-        
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId != answer.UserId) return Forbid();
+
         db.Answers.Remove(answer);
         question.AnswerCount--;
         

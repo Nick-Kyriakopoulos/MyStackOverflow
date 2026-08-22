@@ -2,12 +2,14 @@
 import {Button, Chip} from "@heroui/react";
 import Link from "next/link";
 import {formatDistanceToNow} from "date-fns";
+import QuestionOwnerActions from "@/app/questions/[id]/QuestionOwnerActions";
 
 type Props = {
     question: Question;
+    isOwner: boolean;
 }
 
-export default function QuestionDetailedHeader({question}: Props) {
+export default function QuestionDetailedHeader({question, isOwner}: Props) {
     return (
         <div className={'rounded-3xl border border-neutral-200/70 bg-linear-to-br from-white via-stone-50 to-green-50 p-6 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-purple-950/30'}>
             <div className={'flex flex-col gap-6'}>
@@ -23,7 +25,8 @@ export default function QuestionDetailedHeader({question}: Props) {
                             Follow the discussion, review answers, and explore the related tags for this topic.
                         </p>
                     </div>
-                    <div className={'flex shrink-0'}>
+                    <div className={'flex shrink-0 flex-wrap items-start gap-2'}>
+                        {isOwner && <QuestionOwnerActions questionId={question.id}/>}
                         <Link href={'/questions/ask'}>
                             <Button className={'bg-green-900 dark:bg-purple-700 text-white font-semibold shadow-sm'}>
                                 Ask Question
@@ -39,7 +42,7 @@ export default function QuestionDetailedHeader({question}: Props) {
                     {question.updatedAt && (
                         <div className={'rounded-2xl bg-white/80 px-4 py-3 text-sm shadow-sm dark:bg-gray-900/70'}>
                             <span className={'block text-xs uppercase tracking-wide text-neutral-500 dark:text-gray-400'}>Modified</span>
-                            <span className={'font-medium'}>{question.updatedAt}</span>
+                            <span className={'font-medium'}>{formatDistanceToNow(new Date(question.updatedAt))} ago</span>
                         </div>
                     )}
                     <div className={'rounded-2xl bg-white/80 px-4 py-3 text-sm shadow-sm dark:bg-gray-900/70'}>

@@ -1,7 +1,7 @@
 import {redirect} from "next/navigation";
 import {getTags} from "@/lib/actions/tag-actions";
 import {getValidSession} from "@/lib/session";
-import QuestionForm from "@/app/questions/ask/QuestionForm";
+import QuestionForm from "@/components/questions/QuestionForm";
 
 export default async function Page() {
     // getValidSession, not auth(): an expired session still exists as a cookie,
