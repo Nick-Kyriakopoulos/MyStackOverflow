@@ -19,7 +19,11 @@ public static class AuthExtensions
                         "http://localhost:6001/realms/MyStackOverflow",
                         "http://keycloak/realms/MyStackOverflow",
                         "http://id.MyStackOverflow.local/realms/MyStackOverflow",
-                        "http://id.mystackoverflow.local/realms/MyStackOverflow"
+                        "http://id.mystackoverflow.local/realms/MyStackOverflow",
+                        // Once nginx-proxy terminates TLS, KC_HOSTNAME makes
+                        // Keycloak stamp the https form into every token.
+                        "https://id.MyStackOverflow.local/realms/MyStackOverflow",
+                        "https://id.mystackoverflow.local/realms/MyStackOverflow"
                     ],
                 };
             });

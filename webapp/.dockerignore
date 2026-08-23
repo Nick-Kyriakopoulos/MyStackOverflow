@@ -1,0 +1,26 @@
+# Installed fresh inside the image - copying the host's tree would also drag in
+# platform-specific binaries built for Windows.
+node_modules
+.next
+out
+build
+
+# Never let secrets into the image. Production values arrive as environment
+# variables from the compose file instead.
+.env
+.env.*
+
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# HeroUI's offline docs, only used by editors and agents.
+.heroui-docs
+AGENTS.md
+CLAUDE.md
+README.md
+
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store

@@ -23,11 +23,11 @@ services:
       KC_HOSTNAME_STRICT: "false"
       VIRTUAL_HOST: "id.MyStackOverflow.local"
       VIRTUAL_PORT: "8080"
+      KC_HOSTNAME: "https://id.MyStackOverflow.local"
+      KC_PROXY_HEADERS: "xforwarded"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://production-dashboard:18889"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
       OTEL_SERVICE_NAME: "keycloak"
-    ports:
-      - "6001:8080"
     expose:
       - "8080"
       - "9000"
@@ -96,8 +96,6 @@ services:
       HTTP_PORTS: "${QUESTION_SVC_PORT}"
       KEYCLOAK_HTTP: "http://keycloak:8080"
       services__keycloak__http__0: "http://keycloak:8080"
-      KEYCLOAK_KEYCLOACK: "keycloack://keycloak:8080"
-      services__keycloak__keycloack__0: "keycloack://keycloak:8080"
       ConnectionStrings__questionDb: "Host=postgres;Port=5432;Username=postgres;Password=${POSTGRES_PASSWORD};Database=questionDb"
       QUESTIONDB_HOST: "postgres"
       QUESTIONDB_PORT: "5432"
@@ -164,10 +162,12 @@ services:
       QUESTION_SVC_HTTP: "http://question-svc:${QUESTION_SVC_PORT}"
       REVERSEPROXY__ROUTES__route0__MATCH__PATH: "/questions/{**catch-all}"
       REVERSEPROXY__ROUTES__route0__CLUSTERID: "cluster_question-svc"
-      REVERSEPROXY__ROUTES__route1__MATCH__PATH: "/tags/{**catch-all}"
+      REVERSEPROXY__ROUTES__route1__MATCH__PATH: "/test/{**catch-all}"
       REVERSEPROXY__ROUTES__route1__CLUSTERID: "cluster_question-svc"
-      REVERSEPROXY__ROUTES__route2__MATCH__PATH: "/search/{**catch-all}"
-      REVERSEPROXY__ROUTES__route2__CLUSTERID: "cluster_search-svc"
+      REVERSEPROXY__ROUTES__route2__MATCH__PATH: "/tags/{**catch-all}"
+      REVERSEPROXY__ROUTES__route2__CLUSTERID: "cluster_question-svc"
+      REVERSEPROXY__ROUTES__route3__MATCH__PATH: "/search/{**catch-all}"
+      REVERSEPROXY__ROUTES__route3__CLUSTERID: "cluster_search-svc"
       REVERSEPROXY__CLUSTERS__cluster_question-svc__DESTINATIONS__destination1__ADDRESS: "https+http://question-svc"
       REVERSEPROXY__CLUSTERS__cluster_search-svc__DESTINATIONS__destination1__ADDRESS: "https+http://search-svc"
       services__question-svc__http__0: "http://question-svc:${QUESTION_SVC_PORT}"
@@ -175,26 +175,63 @@ services:
       SEARCH_SVC_HTTP: "http://search-svc:${SEARCH_SVC_PORT}"
       services__search-svc__http__0: "http://search-svc:${SEARCH_SVC_PORT}"
       SEARCH_SVC_HTTPS: "https://search-svc:${SEARCH_SVC_PORT}"
-      ASPNETCORE_URLS: "HTTP://*:8001"
       VIRTUAL_HOST: "api.MyStackOverflow.local"
       VIRTUAL_PORT: "8001"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://production-dashboard:18889"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
       OTEL_SERVICE_NAME: "gateway"
-    ports:
-      - "8001:8001"
     expose:
       - "5000"
     networks:
       - "aspire"
+  webapp:
+    image: "${WEBAPP_IMAGE}"
+    environment:
+      NODE_ENV: "production"
+      KEYCLOAK_HTTP: "http://keycloak:8080"
+      services__keycloak__http__0: "http://keycloak:8080"
+      PORT: "3000"
+      AUTH_KEYCLOACK_ISSUER: "https://id.MyStackOverflow.local/realms/MyStackOverflow"
+      AUTH_KEYCLOACK_ID: "Next JS Client"
+      AUTH_KEYCLOACK_SECRET: "${KEYCLOAK_CLIENT_SECRET}"
+      AUTH_KEYCLOACK_ADMIN_CLIENT_ID: "webapp-admin"
+      AUTH_KEYCLOACK_ADMIN_CLIENT_SECRET: "${KEYCLOAK_ADMIN_CLIENT_SECRET}"
+      AUTH_SECRET: "${AUTH_SECRET}"
+      AUTH_URL: "https://app.MyStackOverflow.local"
+      NODE_EXTRA_CA_CERTS: "/etc/ssl/local/id.MyStackOverflow.local.crt"
+      API_URL: "http://gateway:8001"
+      CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
+      CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
+      CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
+      VIRTUAL_HOST: "app.MyStackOverflow.local"
+      VIRTUAL_PORT: "3000"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://production-dashboard:18889"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "webapp"
+    expose:
+      - "3000"
+    volumes:
+      - type: "bind"
+        target: "/etc/ssl/local"
+        source: "${NGINX_PROXY_BINDMOUNT_0}"
+        read_only: true
+    networks:
+      - "aspire"
+    links:
+      - "nginx-proxy:id.MyStackOverflow.local"
   nginx-proxy:
     image: "nginxproxy/nginx-proxy:1.10"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - type: "bind"
         target: "/tmp/docker.sock"
         source: "/var/run/docker.sock"
+        read_only: true
+      - type: "bind"
+        target: "/etc/nginx/certs"
+        source: "${NGINX_PROXY_BINDMOUNT_0}"
         read_only: true
     networks:
       - "aspire"

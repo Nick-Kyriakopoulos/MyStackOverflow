@@ -46,6 +46,8 @@ async function getAdminAccessToken(): Promise<string> {
 export type CreateKeycloakUserInput = {
     username: string;
     email: string;
+    firstName: string;
+    lastName: string;
     password: string;
 };
 
@@ -70,6 +72,11 @@ export async function createKeycloakUser(
         body: JSON.stringify({
             username: input.username,
             email: input.email,
+            // Keycloak's default user profile marks these required, and the
+            // token's "name" claim - which the app shows as the display name -
+            // is built from them.
+            firstName: input.firstName,
+            lastName: input.lastName,
             enabled: true,
             emailVerified: false,
             credentials: [{ type: 'password', value: input.password, temporary: false }],

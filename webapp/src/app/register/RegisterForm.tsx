@@ -22,6 +22,8 @@ export default function RegisterForm() {
         const formData = new FormData(event.currentTarget);
         const username = String(formData.get('username') ?? '').trim();
         const email = String(formData.get('email') ?? '').trim();
+        const firstName = String(formData.get('firstName') ?? '').trim();
+        const lastName = String(formData.get('lastName') ?? '').trim();
         const password = String(formData.get('password') ?? '');
         const confirmPassword = String(formData.get('confirmPassword') ?? '');
 
@@ -32,7 +34,7 @@ export default function RegisterForm() {
 
         setIsSubmitting(true);
         try {
-            const {data, error} = await registerUser({username, email, password});
+            const {data, error} = await registerUser({username, email, firstName, lastName, password});
 
             if (error) {
                 if (error.field) {
@@ -69,6 +71,20 @@ export default function RegisterForm() {
                 <Input placeholder={'jane_doe'}/>
                 <FieldError/>
             </TextField>
+
+            <div className={'flex flex-col gap-4 sm:flex-row'}>
+                <TextField isRequired name={'firstName'} className={'flex-1'}>
+                    <Label>First name</Label>
+                    <Input placeholder={'Jane'}/>
+                    <FieldError/>
+                </TextField>
+
+                <TextField isRequired name={'lastName'} className={'flex-1'}>
+                    <Label>Last name</Label>
+                    <Input placeholder={'Doe'}/>
+                    <FieldError/>
+                </TextField>
+            </div>
 
             <TextField isRequired name={'email'} type={'email'}>
                 <Label>Email</Label>

@@ -12,6 +12,8 @@ export async function testAuth() {
 export type RegisterInput = {
     username: string;
     email: string;
+    firstName: string;
+    lastName: string;
     password: string;
 };
 
