@@ -23,17 +23,15 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         if (!await tagService.AreTagsValidAsync(dto.Tags)) return BadRequest("Invalid tags");
         
         var userId= User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var name = User.FindFirstValue("name");
 
-        if (userId is null || name is null) return BadRequest("Cannot get user details!");
+        if (userId is null) return BadRequest("Cannot get user details!");
 
         var question = new Question
         {
             Title = dto.Title,
             Content = dto.Content,
             TagSlugs = dto.Tags,
-            AskerId = userId,
-            AskerDisplayName = name
+            AskerId = userId
         };
         
         db.Questions.Add(question);
@@ -126,14 +124,12 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         var question = await db.Questions.FindAsync(questionId);
         if (question is null) return NotFound();
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var name = User.FindFirstValue("name");
-        if (userId is null || name is null) return BadRequest("Cannot get user details");
-        
+        if (userId is null) return BadRequest("Cannot get user details");
+
         var answer = new Answer
         {
             Content = dto.Content,
             UserId = userId,
-            UserDisplayName = name,
             QuestionId = questionId
         };
         

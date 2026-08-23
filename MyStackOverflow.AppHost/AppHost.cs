@@ -37,6 +37,8 @@ var typesenseContainer = typesense.GetEndpoint("typesense");
 
 var questionDb = postgres.AddDatabase("questionDb");
 
+var profileDb = postgres.AddDatabase("profileDb");
+
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
     .WithManagementPlugin(port: 15672);
@@ -58,12 +60,19 @@ var searchService = builder.AddProject<Projects.SearchService>("search-svc")
     .WaitFor(typesense);
 
 
+var profileService = builder.AddProject<Projects.ProfileService>("profile-svc")
+    .WithReference(keycloak)
+    .WithReference(profileDb)
+    .WaitFor(keycloak)
+    .WaitFor(profileDb);
+
 var yarp = builder.AddYarp("gateway")
     .WithConfiguration(yarpBuilder =>
     {
         yarpBuilder.AddRoute("/questions/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/test/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/tags/{**catch-all}", questionService);
+        yarpBuilder.AddRoute("/profiles/{**catch-all}", profileService);
         yarpBuilder.AddRoute("/search/{**catch-all}", searchService);
     })
     .WithHttpEndpoint(port: 8001, targetPort: 5000)

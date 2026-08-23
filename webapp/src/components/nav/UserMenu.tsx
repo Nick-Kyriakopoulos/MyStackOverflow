@@ -2,7 +2,8 @@
 
 import {User} from "next-auth";
 import {Avatar, Dropdown, Label} from "@heroui/react";
-import {ArrowRightStartOnRectangleIcon} from "@heroicons/react/24/outline";
+import {ArrowRightStartOnRectangleIcon, UserCircleIcon} from "@heroicons/react/24/outline";
+import {useRouter} from "next/navigation";
 import {logoutUser} from "@/lib/actions/auth-actions";
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 }
 
 export default function UserMenu({user}: Props) {
+    const router = useRouter();
     const initials = user.name?.charAt(0).toUpperCase() ?? '?';
 
     return (
@@ -30,11 +32,20 @@ export default function UserMenu({user}: Props) {
                 </div>
                 <Dropdown.Menu
                     onAction={(key) => {
+                        if (key === 'profile' && user.id) {
+                            router.push(`/profiles/${user.id}`);
+                        }
                         if (key === 'logout') {
                             void logoutUser();
                         }
                     }}
                 >
+                    <Dropdown.Item id={'profile'} textValue={'Your profile'}>
+                        <div className={'flex w-full items-center justify-between gap-2'}>
+                            <Label>Your profile</Label>
+                            <UserCircleIcon className={'size-4'}/>
+                        </div>
+                    </Dropdown.Item>
                     <Dropdown.Item id={'logout'} textValue={'Log out'} variant={'danger'}>
                         <div className={'flex w-full items-center justify-between gap-2'}>
                             <Label>Log out</Label>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Select, ListBox } from "@heroui/react";
+import Panel from "@/components/layout/Panel";
 
 type Props = {
     answerCount: number;
@@ -16,7 +17,7 @@ export default function AnswersHeader({ answerCount }: Props) {
     const [sortKey, setSortKey] = useState<string>('highScore');
 
     return (
-        <div className="mt-6 flex items-center justify-between rounded-3xl border border-neutral-200/70 bg-linear-to-br from-white via-stone-50 to-green-50 px-6 py-5 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-purple-950/30">
+        <Panel variant={'header'} className="mt-6 flex items-center justify-between py-5">
             <div>
                 <div className="text-2xl font-semibold tracking-tight">
                     {answerCount} {answerCount === 1 ? 'Answer' : 'Answers'}
@@ -43,6 +44,6 @@ export default function AnswersHeader({ answerCount }: Props) {
                     </Select.Popover>
                 </Select>
             </div>
-        </div>
+        </Panel>
     );
 }

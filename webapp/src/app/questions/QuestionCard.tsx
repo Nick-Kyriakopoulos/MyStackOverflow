@@ -1,9 +1,10 @@
-﻿import {Question} from "@/lib/types";
-import {Chip} from "@heroui/react";
+import {Question} from "@/lib/types";
 import Link from "next/link";
 import clsx from "clsx";
 import {CheckIcon} from "@heroicons/react/24/outline";
-import {formatDistanceToNow} from "date-fns";
+import UserBadge from "@/components/profiles/UserBadge";
+import TagLink from "@/components/tags/TagLink";
+import {answerCountStyles} from "@/lib/answerCountStyles";
 
 type Props = {
     question: Question;
@@ -17,13 +18,7 @@ export default function QuestionCard({question}: Props) {
                     <div className={'text-lg font-semibold'}>{question.votes}</div>
                     <div className={'text-xs text-neutral-500 dark:text-gray-400'}>{question.votes === 1 ? 'vote' : 'votes'}</div>
                 </div>
-                <div
-                    className={clsx('rounded-2xl px-3 py-2 text-right', {
-                        'bg-stone-100 dark:bg-gray-800': question.answerCount === 0,
-                        'border border-green-600/40 bg-green-50 text-green-800 dark:border-purple-500/50 dark:bg-purple-500/10 dark:text-purple-200': question.answerCount > 0,
-                        'border border-green-600 bg-green-600 text-white dark:border-purple-600 dark:bg-purple-600': question.hasAcceptedAnswer
-                    })}
-                >
+                <div className={clsx('rounded-2xl px-3 py-2 text-right', answerCountStyles(question.answerCount, question.hasAcceptedAnswer))}>
                     <span className={'flex items-center justify-end gap-2 text-lg font-semibold'}>
                         {question.hasAcceptedAnswer && (
                             <CheckIcon className="h-4 w-4" strokeWidth={4} />
@@ -51,29 +46,17 @@ export default function QuestionCard({question}: Props) {
                     />
                     <div className={'mt-auto flex flex-wrap gap-2 pt-2'}>
                         {question.tagSlugs.map(slug => (
-                            <Link key={slug} href={`/questions?tag=${slug}`}>
-                                <Chip
-                                    size={'sm'}
-                                    className={'border border-green-200 bg-green-100/80 py-1 text-green-900 transition-colors hover:bg-green-200 dark:border-purple-500/40 dark:bg-purple-500/15 dark:text-purple-200 dark:hover:bg-purple-500/25'}
-                                >
-                                    {slug}
-                                </Chip>
-                            </Link>
+                            <TagLink key={slug} slug={slug}/>
                         ))}
                     </div>
                 </div>
-                <div className={'mt-auto flex shrink-0 self-end flex-col items-end gap-1.5 rounded-xl bg-stone-100/80 px-2.5 py-2 text-xs dark:bg-gray-800/80'}>
-                    <div className={'flex items-center gap-1.5'}>
-                        <div className={'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-900 text-[11px] font-semibold text-white dark:bg-purple-700'}>
-                            {question.askerDisplayName.charAt(0).toUpperCase()}
-                        </div>
-                        <Link href={`/profiles/${question.askerId}`} className={'whitespace-nowrap font-medium hover:underline'}>
-                            {question.askerDisplayName}
-                        </Link>
-                    </div>
-                    <span className={'whitespace-nowrap text-[11px] text-neutral-700 dark:text-gray-400'}>
-                        Asked {formatDistanceToNow(new Date(question.createdAt))}
-                    </span>
+                <div className={'mt-auto shrink-0 self-end'}>
+                    <UserBadge
+                        profile={question.author}
+                        action={'Asked'}
+                        timestamp={question.createdAt}
+                        size={'sm'}
+                    />
                 </div>
             </div>
         </div>

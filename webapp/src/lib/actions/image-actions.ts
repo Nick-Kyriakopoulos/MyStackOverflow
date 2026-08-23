@@ -3,9 +3,11 @@
 import {getCloudinary} from "@/lib/cloudinary";
 import {
     ALLOWED_IMAGE_TYPES,
+    ALLOWED_UPLOAD_FOLDERS,
+    isInAllowedFolder,
     MAX_IMAGE_BYTES,
     publicIdFromUrl,
-    UPLOAD_FOLDER,
+    QUESTION_UPLOAD_FOLDER,
 } from "@/lib/imageRules";
 import {getValidSession} from "@/lib/session";
 
@@ -15,8 +17,15 @@ export type UploadedImage = {
 };
 
 export async function uploadImage(
-    formData: FormData
+    formData: FormData,
+    folder: string = QUESTION_UPLOAD_FOLDER
 ): Promise<{data: UploadedImage | null, error?: {message: string, status: number}}> {
+    // The folder arrives from the browser, so it is checked rather than trusted -
+    // otherwise an upload could be steered into any folder in the account.
+    if (!ALLOWED_UPLOAD_FOLDERS.includes(folder)) {
+        return {data: null, error: {message: 'Unknown upload folder.', status: 400}};
+    }
+
     // Server actions are public endpoints - without this anyone could fill the
     // Cloudinary account by POSTing to it.
     const session = await getValidSession();
@@ -41,7 +50,7 @@ export async function uploadImage(
         const dataUri = `data:${file.type};base64,${bytes.toString('base64')}`;
 
         const result = await getCloudinary().uploader.upload(dataUri, {
-            folder: UPLOAD_FOLDER,
+            folder,
             resource_type: 'image',
         });
 
@@ -55,10 +64,14 @@ export async function uploadImage(
 // Best-effort cleanup of images no longer referenced by any question. A failure
 // here leaves an orphan in Cloudinary, which is not worth failing the user's
 // edit or delete over - so this never throws.
+//
+// Restricted to the questions folder on purpose: this runs over user-authored
+// markup, and someone who pasted another member's avatar into a question must not
+// be able to delete it by deleting their own post.
 export async function deleteImagesByUrl(urls: string[]) {
     const publicIds = urls
         .map(publicIdFromUrl)
-        .filter((id): id is string => !!id && id.startsWith(`${UPLOAD_FOLDER}/`));
+        .filter((id): id is string => !!id && id.startsWith(`${QUESTION_UPLOAD_FOLDER}/`));
 
     if (publicIds.length === 0) return;
 
@@ -72,9 +85,9 @@ export async function deleteImage(publicId: string) {
     const session = await getValidSession();
     if (!session) return {error: {message: 'You must be signed in.', status: 401}};
 
-    // Anything outside our own folder is not ours to delete, and publicId comes
+    // Anything outside our own folders is not ours to delete, and publicId comes
     // from markup the user could have edited.
-    if (!publicId.startsWith(`${UPLOAD_FOLDER}/`)) {
+    if (!isInAllowedFolder(publicId)) {
         return {error: {message: 'Refusing to delete an image outside the upload folder.', status: 400}};
     }
 

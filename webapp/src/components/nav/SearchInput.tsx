@@ -5,14 +5,15 @@ import React, {useEffect} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import clsx from "clsx";
-import {Question} from "@/lib/types";
+import {SearchResult} from "@/lib/types";
 import {searchQuestions} from "@/lib/actions/question-actions";
+import {answerCountStyles} from "@/lib/answerCountStyles";
 
 export default function SearchInput() {
     const router = useRouter();
     const [query, setQuery] = React.useState('');
     const [loading, setLoading] = React.useState(false);
-    const [results, setResults] = React.useState<Question[] | null>(null);
+    const [results, setResults] = React.useState<SearchResult[] | null>(null);
     const [showDropdown, setShowDropdown] = React.useState(false);
     const [activeIndex, setActiveIndex] = React.useState(-1);
     const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -113,11 +114,7 @@ export default function SearchInput() {
                             })}
                         >
                             <div
-                                className={clsx('flex shrink-0 flex-col items-center rounded-lg px-2 py-1 text-xs', {
-                                    'bg-stone-100 dark:bg-gray-700': question.answerCount === 0,
-                                    'border border-green-600/40 bg-green-50 text-green-800 dark:border-purple-500/50 dark:bg-purple-500/10 dark:text-purple-200': question.answerCount > 0,
-                                    'border border-green-600 bg-green-600 text-white dark:border-purple-600 dark:bg-purple-600': question.hasAcceptedAnswer
-                                })}
+                                className={clsx('flex shrink-0 flex-col items-center rounded-lg px-2 py-1 text-xs', answerCountStyles(question.answerCount, question.hasAcceptedAnswer))}
                             >
                                 <span className={'font-semibold'}>{question.answerCount}</span>
                                 <span>{question.answerCount === 1 ? 'answer' : 'answers'}</span>

@@ -10,10 +10,10 @@ public class Question
     public required string Title { get; set; }
     [MaxLength(5000)]
     public required string Content { get; set; }
+    // The display name lives in ProfileService now - a copy here would go stale the
+    // moment someone renamed themselves.
     [MaxLength(36)]
     public required string AskerId { get; set; }
-    [MaxLength(300)]
-    public required string AskerDisplayName { get; set; }
     public DateTime CreatedAt { get; set; } =  DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public int ViewCount { get; set; }

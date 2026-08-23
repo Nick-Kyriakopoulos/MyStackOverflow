@@ -2,7 +2,16 @@
 // and needs these limits, but pulling in the server SDK would ship the upload
 // signing code (and its config) to the browser.
 
-export const UPLOAD_FOLDER = 'mystackoverflow/questions';
+export const QUESTION_UPLOAD_FOLDER = 'mystackoverflow/questions';
+export const PROFILE_UPLOAD_FOLDER = 'mystackoverflow/profiles';
+
+// Everything this app is allowed to delete. Kept as an explicit list so the delete
+// guard stays a whitelist rather than a prefix match on 'mystackoverflow/'.
+export const ALLOWED_UPLOAD_FOLDERS = [QUESTION_UPLOAD_FOLDER, PROFILE_UPLOAD_FOLDER];
+
+export function isInAllowedFolder(publicId: string) {
+    return ALLOWED_UPLOAD_FOLDERS.some(folder => publicId.startsWith(`${folder}/`));
+}
 
 // Kept below next.config.ts's serverActions.bodySizeLimit - a file over that
 // limit is rejected by Next before the action runs, with an opaque error.

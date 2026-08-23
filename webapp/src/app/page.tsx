@@ -1,4 +1,3 @@
-import {Button} from "@heroui/react";
 import {AcademicCapIcon} from "@heroicons/react/24/solid";
 
 export default function Home() {

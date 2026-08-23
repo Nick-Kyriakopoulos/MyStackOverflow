@@ -3,6 +3,7 @@ import {Button, Chip} from "@heroui/react";
 import Link from "next/link";
 import {formatDistanceToNow} from "date-fns";
 import QuestionOwnerActions from "@/app/questions/[id]/QuestionOwnerActions";
+import Panel from "@/components/layout/Panel";
 
 type Props = {
     question: Question;
@@ -11,7 +12,7 @@ type Props = {
 
 export default function QuestionDetailedHeader({question, isOwner}: Props) {
     return (
-        <div className={'rounded-3xl border border-neutral-200/70 bg-linear-to-br from-white via-stone-50 to-green-50 p-6 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-purple-950/30'}>
+        <Panel variant={'header'}>
             <div className={'flex flex-col gap-6'}>
                 <div className={'flex flex-col gap-4 md:flex-row md:items-start md:justify-between'}>
                     <div className={'space-y-3'}>
@@ -51,6 +52,6 @@ export default function QuestionDetailedHeader({question, isOwner}: Props) {
                     </div>
                 </div>
             </div>
-        </div>
+        </Panel>
     );
 }

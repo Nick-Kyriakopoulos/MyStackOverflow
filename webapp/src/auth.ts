@@ -37,6 +37,31 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     }
 }
 
+// Keycloak owns registration and publishes nothing to RabbitMQ, so sign-in is the
+// only moment the app learns a user exists. The call is idempotent server-side, and
+// deliberately swallows its errors: a ProfileService outage must not block signing in.
+async function ensureProfile(accessToken?: string) {
+    if (!accessToken || !process.env.API_URL) return;
+
+    try {
+        const response = await fetch(`${process.env.API_URL}/profiles/ensure`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        // fetch only rejects on network failures, so a 401 or 400 would otherwise
+        // pass silently here - and the only symptom would be every author on the
+        // site rendering as "Unknown user", with nothing in the log to explain it.
+        if (!response.ok) {
+            console.error(
+                `Could not create the user's profile: ${response.status} ${await response.text()}`
+            );
+        }
+    } catch (error) {
+        console.error("Could not reach the profile service at sign-in", error);
+    }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
         Keycloak({
@@ -53,6 +78,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async jwt({ token, account, profile }) {
             // Initial sign-in: persist the tokens Keycloak issued.
             if (account) {
+                await ensureProfile(account.access_token);
+
                 return {
                     ...token,
                     // Keycloak's own user id. Without an adapter Auth.js puts a

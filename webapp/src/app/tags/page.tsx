@@ -1,6 +1,7 @@
 ﻿import TagCard from "@/app/tags/TagCard";
 import {getTags} from "@/lib/actions/tag-actions";
 import {Chip} from "@heroui/react";
+import Panel from "@/components/layout/Panel";
 
 export default async function Page() {
     const {data: tags, error} = await getTags();
@@ -9,7 +10,7 @@ export default async function Page() {
     
     return (
         <div className={'container mx-auto px-4 py-8 md:px-6'}>
-            <div className={'mb-8 rounded-3xl border border-neutral-200/70 bg-linear-to-br from-white via-stone-50 to-green-50 p-6 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-purple-950/30'}>
+            <Panel variant={'header'} className={'mb-8'}>
                 <div className={'mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'}>
                     <div>
                         <h1 className={'text-3xl font-bold tracking-tight md:text-4xl'}>Tags</h1>
@@ -21,7 +22,7 @@ export default async function Page() {
                         {tags?.length ?? 0} tags
                     </Chip>
                 </div>
-            </div>
+            </Panel>
             <div className={'grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3'}>
                 {tags?.map(tag => (
                     <TagCard key={tag.id} tag={tag}/>
