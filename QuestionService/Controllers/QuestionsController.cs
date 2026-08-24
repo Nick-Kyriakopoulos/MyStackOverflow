@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using Common;
 using Contracts;
 using FastExpressionCompiler;
 using Microsoft.AspNetCore.Authorization;
@@ -53,16 +54,34 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
     }
     
     [HttpGet]
-    public async Task<ActionResult<List<Question>>> GetQuestions(string? tag)
+    public async Task<ActionResult<PaginationResult<Question>>> GetQuestions([FromQuery] QuestionParams parameters)
     {
         var query = db.Questions.AsQueryable();
 
-        if (!string.IsNullOrEmpty(tag))
+        if (!string.IsNullOrEmpty(parameters.Tag))
         {
-            query = query.Where(q => q.TagSlugs.Contains(tag));
+            query = query.Where(q => q.TagSlugs.Contains(parameters.Tag));
         }
-        
-        return await query.OrderByDescending(q => q.CreatedAt).ToListAsync();
+
+        var ordered = parameters.Sort?.ToLowerInvariant() switch
+        {
+            "unanswered" => query.Where(q => q.AnswerCount == 0)
+                .OrderByDescending(q => q.CreatedAt),
+            // Most recently touched, counting edits to the question and anything that
+            // happened on its answers - not simply the newest question.
+            "active" => query.OrderByDescending(q =>
+                q.Answers.Any(a => (a.UpdatedAt ?? a.CreatedAt) > (q.UpdatedAt ?? q.CreatedAt))
+                    ? q.Answers.Max(a => a.UpdatedAt ?? a.CreatedAt)
+                    : (q.UpdatedAt ?? q.CreatedAt)),
+            _ => query.OrderByDescending(q => q.CreatedAt)
+        };
+
+        // Every sort column here can tie - the seeded questions share a timestamp to the
+        // second. Without a unique tiebreaker Postgres is free to order ties differently
+        // between queries, which makes a row appear on two pages or on none.
+        var paged = ordered.ThenBy(q => q.Id);
+
+        return await paged.ToPagedResultAsync(new PaginationRequest(parameters.Page, parameters.PageSize));
     }
 
     [HttpGet("{id}")]

@@ -43,6 +43,20 @@ export type VoteRecord = {
     value: number
 }
 
+// Offset paging. totalCount is across all pages, not the length of items.
+export type Paged<T> = {
+    items: T[]
+    totalCount: number
+    page: number
+    pageSize: number
+}
+
+export type QuestionSort = 'newest' | 'active' | 'unanswered';
+
+// Answers are sorted in the web app, not the API - they are never paginated, and EF
+// cannot reliably order an included collection.
+export type AnswerSort = 'highScore' | 'created';
+
 // Search hits come from Typesense, not the question database, and carry only the
 // fields SearchService indexes - no author, no view count.
 export type SearchResult = {

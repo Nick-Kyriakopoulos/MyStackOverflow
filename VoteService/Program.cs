@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using VoteService.Data;
 using VoteService.Models;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
+using Wolverine.Postgresql;
 using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,11 +16,26 @@ builder.AddServiceDefaults();
 builder.Services.AddKeyCloakAuthentication();
 // Minimal APIs do not get this from AddControllers - see ProfileService.
 builder.Services.AddAuthorization();
-builder.AddNpgsqlDbContext<VoteDbContext>("voteDb");
+var connectionString = builder.Configuration.GetConnectionString("voteDb")
+                       ?? throw new InvalidOperationException("voteDb connection string not found");
+
+// Singleton options lifetime is a hard requirement of Wolverine's EF integration -
+// see QuestionService for the same registration and its trade-off.
+builder.Services.AddDbContext<VoteDbContext>(
+    options => options.UseNpgsql(connectionString),
+    optionsLifetime: ServiceLifetime.Singleton);
 
 await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
     opts.PublishAllMessages().ToRabbitExchange("questions");
+
+    // A vote that is recorded but never announced would leave the tally and the
+    // reputation permanently behind the vote itself. The outbox makes the two
+    // inseparable: both land in voteDb in one transaction.
+    opts.PersistMessagesWithPostgresql(connectionString);
+    opts.UseEntityFrameworkCoreTransactions();
+    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+
     opts.ApplicationAssembly = typeof(Program).Assembly;
 });
 
@@ -92,18 +109,7 @@ app.MapGet("/votes/mine", [Authorize] async (string targetIds, ClaimsPrincipal u
 
 app.MapDefaultEndpoints();
 
-using var scope = app.Services.CreateScope();
-var services = scope.ServiceProvider;
-try
-{
-    var context = services.GetRequiredService<VoteDbContext>();
-    await context.Database.MigrateAsync();
-}
-catch (Exception e)
-{
-    var logger = services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(e, "An error occurred while migrating the database.");
-}
+await app.MigrateDatabaseAsync<VoteDbContext>();
 
 app.Run();
 

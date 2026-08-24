@@ -1,7 +1,7 @@
 ﻿'use server';
 
 import {revalidatePath} from "next/cache";
-import {Answer, Profile, Question, SearchResult} from "@/lib/types";
+import {Answer, Paged, Profile, Question, QuestionSort, SearchResult} from "@/lib/types";
 import {fetchClient} from "@/lib/fetchClient";
 import {questionSchema, QuestionSchema} from "@/lib/schemas/questionSchema";
 import {sanitizeContent} from "@/lib/sanitize";
@@ -42,14 +42,28 @@ async function withAuthors(questions: RawQuestion[]): Promise<Question[]> {
     }));
 }
 
-export async function getQuestions(tag?: string) {
-    let url = '/questions';
-    if (tag) url += '?tag=' + tag;
+export async function getQuestions(params: {
+    tag?: string;
+    sort?: QuestionSort;
+    page?: number;
+    pageSize?: number;
+} = {}) {
+    const query = new URLSearchParams();
+    if (params.tag) query.set('tag', params.tag);
+    if (params.sort) query.set('sort', params.sort);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
 
-    const result = await fetchClient<RawQuestion[]>(url, 'GET');
+    const url = query.size > 0 ? `/questions?${query}` : '/questions';
+
+    const result = await fetchClient<Paged<RawQuestion>>(url, 'GET');
     if (!result.data) return {data: null, error: result.error};
 
-    return {data: await withAuthors(result.data), error: undefined};
+    // Only this page's authors are looked up, so the batch stays small however deep
+    // the list goes.
+    const items = await withAuthors(result.data.items);
+
+    return {data: {...result.data, items}, error: undefined};
 }
 
 export async function getQuestionsById(id: string) {

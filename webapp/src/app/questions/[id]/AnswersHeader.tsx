@@ -1,20 +1,32 @@
-﻿'use client';
+'use client';
 
-import { useState } from "react";
 import { Select, ListBox } from "@heroui/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AnswerSort } from "@/lib/types";
 import Panel from "@/components/layout/Panel";
 
 type Props = {
     answerCount: number;
+    sort: AnswerSort;
 }
 
-const SORT_LABELS: Record<string, string> = {
+const SORT_LABELS: Record<AnswerSort, string> = {
     highScore: 'Highest score (default)',
     created: 'Date created',
 };
 
-export default function AnswersHeader({ answerCount }: Props) {
-    const [sortKey, setSortKey] = useState<string>('highScore');
+export default function AnswersHeader({ answerCount, sort }: Props) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Kept in the URL rather than local state so the choice survives a refresh and can
+    // be linked to - and so the server component does the sorting.
+    const onChange = (key: AnswerSort) => {
+        const params = new URLSearchParams(searchParams);
+        params.set('answerSort', key);
+        router.push(`${pathname}?${params}`, {scroll: false});
+    };
 
     return (
         <Panel variant={'header'} className="mt-6 flex items-center justify-between py-5">
@@ -28,18 +40,18 @@ export default function AnswersHeader({ answerCount }: Props) {
             </div>
             <div className="ml-auto flex items-center gap-3 justify-end">
                 <Select
-                    aria-label="Select sorting"
-                    value={sortKey}
-                    onChange={(key) => setSortKey(key as string)}
+                    aria-label="Sort answers"
+                    selectedKey={sort}
+                    onSelectionChange={(key) => onChange(key as AnswerSort)}
                     className="min-w-60"
                 >
                     <Select.Trigger>
-                        <Select.Value>{SORT_LABELS[sortKey]}</Select.Value>
+                        <Select.Value>{SORT_LABELS[sort]}</Select.Value>
                     </Select.Trigger>
                     <Select.Popover>
                         <ListBox>
-                            <ListBox.Item id="highScore">Highest score (default)</ListBox.Item>
-                            <ListBox.Item id="created">Date created</ListBox.Item>
+                            <ListBox.Item id="highScore">{SORT_LABELS.highScore}</ListBox.Item>
+                            <ListBox.Item id="created">{SORT_LABELS.created}</ListBox.Item>
                         </ListBox>
                     </Select.Popover>
                 </Select>

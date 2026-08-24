@@ -61,7 +61,8 @@ disappeared exactly this way.
 MyStackOverflow/
 ├── MyStackOverflow.AppHost/    # Aspire host — defines ALL service wiring (AppHost.cs)
 ├── MyStackOverflow.ServiceDefaults/  # Shared Aspire service defaults (health, OTEL)
-├── Common/                     # Shared extensions: AuthExtensions, WolverineExtensions
+├── Common/                     # AuthExtensions, WolverineExtensions, MigrationExtensions,
+│                               #   Pagination (types + IQueryable extension)
 ├── Contracts/                  # Shared event records (C#): QuestionCreated, etc.
 ├── QuestionService/            # REST API for questions, answers, tags
 │   ├── Controllers/            # QuestionsController, TagsController
@@ -140,8 +141,11 @@ npm run lint
 Set `API_URL` env var to point to the YARP gateway (e.g., `http://localhost:8001`) when running outside Aspire.
 
 ### Database Migrations
-QuestionService and ProfileService each own their database. Migrations are **applied
-automatically on startup** via `context.Database.MigrateAsync()` in `Program.cs`.
+QuestionService, ProfileService and VoteService each own their database. Migrations are
+**applied automatically on startup** via `await app.MigrateDatabaseAsync<TContext>()`
+from `Common` — one line per service, not a copy-pasted scope-and-try-catch block.
+Failures are logged rather than thrown, so a service that cannot migrate still starts
+and says why. StatsService has neither: Marten creates its document tables on demand.
 
 To add a new migration:
 ```powershell
@@ -229,13 +233,57 @@ answerable. Do not try to derive one from the other.
 than only an application check, since two simultaneous requests would both pass the
 check. The client fetches existing votes and disables the controls; there is no toggle.
 
-**Reputation is awarded by QuestionService, not VoteService.** VoteService knows a vote
-happened but not who wrote the target, and a client-supplied author id would let anyone
-award reputation to anyone. `VoteCastHandler` reads the author from the database and
-publishes `UserReputationChanged` itself. Self-votes move the tally but earn nothing.
+**Reputation is awarded by QuestionService, not VoteService — a deliberate departure
+from the course.** The course's `CastVoteDto` carries `TargetUserId`, and VoteService
+publishes the reputation event using that client-supplied value. Anyone signed in could
+therefore POST `/votes` with their own id as `TargetUserId` and collect points on any
+target; the one-vote-per-target rule only limits the rate.
+
+Here `VoteCast` carries only who voted. `VoteCastHandler` in QuestionService reads the
+author from its own database and publishes `UserReputationChanged` itself, so the client
+cannot nominate who benefits. Self-votes move the tally but earn nothing.
+
+The API ignores unknown JSON fields, so a client sending the course's five-field payload
+still works — `TargetUserId` and `QuestionId` are simply dropped. If a later lecture
+depends on the course's shape, that compatibility is why nothing breaks.
 
 Point values live in the `Reputation` library because three services need them and
 Contracts must stay free of policy.
+
+### Message durability — and where it stops
+
+QuestionService and VoteService publish through a **transactional outbox**
+(`PersistMessagesWithPostgresql` + `UseEntityFrameworkCoreTransactions` +
+`Policies.UseDurableOutboxOnAllSendingEndpoints`). The event is written to the service's
+own database in the same transaction as the entity and forwarded once the broker is
+reachable, so a broker outage no longer silently loses events.
+
+Those two register their `DbContext` by hand rather than with `AddNpgsqlDbContext`,
+because Wolverine's EF integration **requires the options to be a singleton**. The
+trade-off is losing Aspire's DbContext health check. Do not "tidy" it back.
+
+**The outbox does not make the stack broker-independent.** Verified on 2026-08-24: with
+RabbitMQ stopped, a *running* service keeps serving requests, but a service that has to
+**start** during the outage never comes up. `Common.WolverineExtensions` retries the
+connection five times with exponential backoff and then lets the exception reach the
+host. That is deliberate, but it means the outbox covers "the broker died while I was
+running", not "the broker is missing when I boot".
+
+### Pagination and sorting
+
+`GET /questions` returns `PaginationResult<Question>`, never a bare array. Offset paging
+lives in `Common/Pagination.cs`: default page size 5, hard maximum 50, values clamped
+rather than rejected.
+
+**Every sort appends `ThenBy(q => q.Id)`.** The seeded questions share a timestamp to
+the second, and without a unique tiebreaker Postgres may order ties differently between
+queries — which makes a row appear on two pages or on none. Keep the tiebreaker on any
+new sort.
+
+`sort` accepts `newest` (default), `active` and `unanswered`; anything else falls back
+to newest, because the value comes from the address bar. **Answers are sorted in the web
+app, not the API** — they are never paginated and EF cannot reliably order an included
+collection. An accepted answer stays pinned to the top regardless of sort.
 
 ### Identity & Profiles (ProfileService)
 
