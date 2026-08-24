@@ -39,6 +39,10 @@ var questionDb = postgres.AddDatabase("questionDb");
 
 var profileDb = postgres.AddDatabase("profileDb");
 
+var statsDb = postgres.AddDatabase("statsDb");
+
+var voteDb = postgres.AddDatabase("voteDb");
+
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
     .WithManagementPlugin(port: 15672);
@@ -63,8 +67,25 @@ var searchService = builder.AddProject<Projects.SearchService>("search-svc")
 var profileService = builder.AddProject<Projects.ProfileService>("profile-svc")
     .WithReference(keycloak)
     .WithReference(profileDb)
+    .WithReference(rabbitmq)
     .WaitFor(keycloak)
-    .WaitFor(profileDb);
+    .WaitFor(profileDb)
+    .WaitFor(rabbitmq);
+
+// No Keycloak reference: the stats endpoints are public read models.
+var statsService = builder.AddProject<Projects.StatsService>("stats-svc")
+    .WithReference(statsDb)
+    .WithReference(rabbitmq)
+    .WaitFor(statsDb)
+    .WaitFor(rabbitmq);
+
+var voteService = builder.AddProject<Projects.VoteService>("vote-svc")
+    .WithReference(keycloak)
+    .WithReference(voteDb)
+    .WithReference(rabbitmq)
+    .WaitFor(keycloak)
+    .WaitFor(voteDb)
+    .WaitFor(rabbitmq);
 
 var yarp = builder.AddYarp("gateway")
     .WithConfiguration(yarpBuilder =>
@@ -73,6 +94,8 @@ var yarp = builder.AddYarp("gateway")
         yarpBuilder.AddRoute("/test/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/tags/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/profiles/{**catch-all}", profileService);
+        yarpBuilder.AddRoute("/stats/{**catch-all}", statsService);
+        yarpBuilder.AddRoute("/votes/{**catch-all}", voteService);
         yarpBuilder.AddRoute("/search/{**catch-all}", searchService);
     })
     .WithHttpEndpoint(port: 8001, targetPort: 5000)

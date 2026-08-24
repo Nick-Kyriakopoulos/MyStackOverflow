@@ -8,6 +8,7 @@ using QuestionService.Data;
 using QuestionService.DTOs;
 using QuestionService.Models;
 using QuestionService.Services;
+using Reputation;
 using Wolverine;
 
 namespace QuestionService.Controllers;
@@ -36,7 +37,12 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         
         db.Questions.Add(question);
         await db.SaveChangesAsync();
-        
+
+        // Deliberately after the save and outside its transaction: the question is the
+        // part that must not be lost, and a tag counter that drifts by one is cheap.
+        await db.Tags.Where(t => dto.Tags.Contains(t.Slug))
+            .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount + 1));
+
         await bus.PublishAsync(new QuestionCreated(
             question.Id, question.Title,
             question.Content, question.CreatedAt,
@@ -85,13 +91,34 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         if (userId!= question.AskerId) return Forbid();
         
         if (!await tagService.AreTagsValidAsync(dto.Tags)) return BadRequest("Invalid tags");
-        
+
+        // Captured before the overwrite, so the counters can be corrected for tags the
+        // user added or dropped during the edit.
+        var original = question.TagSlugs.ToArray();
+        var removed = original.Except(dto.Tags, StringComparer.OrdinalIgnoreCase).ToArray();
+        var added = dto.Tags.Except(original, StringComparer.OrdinalIgnoreCase).ToArray();
+
         question.Title = dto.Title;
         question.Content = dto.Content;
         question.TagSlugs = dto.Tags;
         question.UpdatedAt = DateTime.UtcNow;
-        
+
         await db.SaveChangesAsync();
+
+        if (removed.Length > 0)
+        {
+            // Guarded against going negative: the counter is maintained outside the
+            // question transaction, so it can drift, and a negative usage count would
+            // be visible on the tags page.
+            await db.Tags.Where(t => removed.Contains(t.Slug) && t.UsageCount > 0)
+                .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount - 1));
+        }
+
+        if (added.Length > 0)
+        {
+            await db.Tags.Where(t => added.Contains(t.Slug))
+                .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount + 1));
+        }
 
         await bus.PublishAsync(new QuestionUpdated(question.Id, question.Title,
             question.Content, question.TagSlugs.AsArray()));
@@ -109,9 +136,14 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId != question.AskerId) return Forbid();
         
+        var tags = question.TagSlugs.ToArray();
+
         db.Questions.Remove(question);
         await db.SaveChangesAsync();
-        
+
+        await db.Tags.Where(t => tags.Contains(t.Slug) && t.UsageCount > 0)
+            .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount - 1));
+
         await bus.PublishAsync(new QuestionDeleted(question.Id));
         
         return NoContent();
@@ -192,12 +224,20 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         if (answer is null || question is null) return NotFound();
         if (answer.QuestionId != questionId || question.HasAcceptedAnswer) return BadRequest("Cannot accept answer");
         
+        var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (actorId is null) return BadRequest("Cannot get user details");
+        if (actorId != question.AskerId) return Forbid();
+
         answer.Accepted = true;
         question.HasAcceptedAnswer = true;
-        
+
         await db.SaveChangesAsync();
 
         await bus.PublishAsync(new AnswerAccepted(questionId));
+
+        // The answer's author earns the reputation, not whoever accepted it.
+        await bus.PublishAsync(
+            ReputationHelper.MakeEvent(answer.UserId, ReputationReason.AnswerAccepted, actorId));
         
         return NoContent();
     }

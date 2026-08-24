@@ -27,6 +27,10 @@ builder.AddNpgsqlDbContext<QuestionDbContext>("questionDb");
 await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
     opts.PublishAllMessages().ToRabbitExchange("questions");
+    // This service now consumes as well as publishes: votes are cast elsewhere but
+    // the tally lives here. Named for what it consumes rather than for the service,
+    // since the other queues already read as question.<consumer>.
+    opts.ListenToRabbitQueue("question.votes", cfg => cfg.BindExchange("questions"));
     opts.ApplicationAssembly = typeof(Program).Assembly;
 });
 

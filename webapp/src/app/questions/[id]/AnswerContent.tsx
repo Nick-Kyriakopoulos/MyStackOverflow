@@ -5,7 +5,7 @@ import {useRouter} from "next/navigation";
 import {AlertDialog, Button} from "@heroui/react";
 import {PencilSquareIcon, TrashIcon} from "@heroicons/react/24/outline";
 import clsx from "clsx";
-import {Answer} from "@/lib/types";
+import {Answer, VoteRecord} from "@/lib/types";
 import VotingButtons from "@/app/questions/[id]/VotingButtons";
 import AnswerFooter from "@/app/questions/[id]/AnswerFooter";
 import AnswerForm from "@/components/questions/AnswerForm";
@@ -15,10 +15,17 @@ import {handleError, successToast} from "@/lib/util";
 type Props = {
     answer: Answer;
     questionId: string;
+    // Whether the signed-in user wrote this answer - controls edit and delete.
     isOwner: boolean;
+    myVote?: VoteRecord;
+    isSignedIn: boolean;
+    // The asker may accept, but only while nothing has been accepted yet.
+    canAccept: boolean;
 }
 
-export default function AnswerContent({answer, questionId, isOwner}: Props) {
+export default function AnswerContent({
+    answer, questionId, isOwner, myVote, isSignedIn, canAccept,
+}: Props) {
     const router = useRouter();
     const [isEditing, setIsEditing] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -46,7 +53,17 @@ export default function AnswerContent({answer, questionId, isOwner}: Props) {
             'border-green-300 bg-green-50/60 dark:border-purple-500/50 dark:bg-purple-950/20': answer.accepted,
         })}>
             <div className={'self-start'}>
-                <VotingButtons accepted={answer.accepted}/>
+                <VotingButtons
+                    targetId={answer.id}
+                    targetType={'answer'}
+                    questionId={questionId}
+                    votes={answer.votes}
+                    myVote={myVote?.value}
+                    isSignedIn={isSignedIn}
+                    isAuthor={isOwner}
+                    accepted={answer.accepted}
+                    canAccept={canAccept}
+                />
             </div>
             <div className={'flex flex-1 flex-col'}>
                 {isEditing ? (

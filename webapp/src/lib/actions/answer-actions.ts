@@ -62,6 +62,20 @@ export async function deleteAnswer(questionId: string, answerId: string) {
     return result;
 }
 
+export async function acceptAnswer(questionId: string, answerId: string) {
+    const result = await fetchClient<null>(
+        `/questions/${questionId}/answers/${answerId}/accept`, 'POST');
+
+    if (!result.error) {
+        // Accepting awards the answer's author reputation, so their name renders with a
+        // new score on the list as well as here.
+        revalidatePath(`/questions/${questionId}`);
+        revalidatePath('/questions');
+    }
+
+    return result;
+}
+
 // There is no GET for a single answer - answers only come back nested in their
 // question, which is enough to diff the images an edit removed.
 async function findAnswer(questionId: string, answerId: string) {

@@ -22,7 +22,10 @@ export default function TagCard({tag}: Props) {
                     </Card.Description>
                 </Card.Content>
                 <CardFooter className={'mt-auto px-0 pb-0 pt-4 text-sm text-neutral-500 dark:text-gray-400'}>
-                    Browse questions tagged <span className={'ml-1 font-medium text-green-800 dark:text-purple-300'}>{tag.slug}</span>
+                    <span className={'font-medium text-green-800 dark:text-purple-300'}>
+                        {tag.usageCount.toLocaleString()}
+                    </span>
+                    <span className={'ml-1'}>{tag.usageCount === 1 ? 'question' : 'questions'}</span>
                 </CardFooter>
             </Card>
         </Link>

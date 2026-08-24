@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProfileService.Data;
 using ProfileService.Models;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,14 @@ builder.Services.AddKeyCloakAuthentication();
 // UseAuthorization() throws at startup.
 builder.Services.AddAuthorization();
 builder.AddNpgsqlDbContext<ProfileDbContext>("profileDb");
+
+// This service joins the bus from Section 12 on: reputation is earned through votes
+// and accepted answers, which happen in other services, but the total belongs here.
+await builder.UseWolverineWithRabbitMqAsync(opts =>
+{
+    opts.ListenToRabbitQueue("question.profiles", cfg => cfg.BindExchange("questions"));
+    opts.ApplicationAssembly = typeof(Program).Assembly;
+});
 
 var app = builder.Build();
 

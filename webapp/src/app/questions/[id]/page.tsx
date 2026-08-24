@@ -1,4 +1,5 @@
 ﻿import {getQuestionsById} from "@/lib/actions/question-actions";
+import {getMyVotes} from "@/lib/actions/vote-actions";
 import {getValidSession} from "@/lib/session";
 import {notFound} from "next/navigation";
 import Link from "next/link";
@@ -22,10 +23,23 @@ export default async function QuestionDetailedPage({params}: {params: Params}) {
 
     const isOwner = question.askerId === session?.user.id;
 
+    // One call for the question and every answer, rather than one per voting control.
+    // Anonymous visitors skip it entirely - the endpoint requires a token.
+    const {data: votes} = session
+        ? await getMyVotes([question.id, ...question.answers.map(a => a.id)])
+        : {data: []};
+
+    const voteFor = (targetId: string) => votes?.find(v => v.targetId === targetId);
+
     return (
         <div className={'container mx-auto w-full px-4 py-8 md:px-6'}>
             <QuestionDetailedHeader question={question} isOwner={isOwner} />
-            <QuestionContent question={question} />
+            <QuestionContent
+                question={question}
+                myVote={voteFor(question.id)}
+                isSignedIn={!!session}
+                isAuthor={isOwner}
+            />
             {question.answers.length > 0 && (
                 <AnswersHeader answerCount={question.answers.length} />
             )}
@@ -35,6 +49,9 @@ export default async function QuestionDetailedPage({params}: {params: Params}) {
                         answer={answer}
                         questionId={question.id}
                         isOwner={!!session && answer.userId === session.user.id}
+                        myVote={voteFor(answer.id)}
+                        isSignedIn={!!session}
+                        canAccept={isOwner && !question.hasAcceptedAnswer}
                         key={answer.id}
                     />
                 ))}

@@ -31,7 +31,16 @@ export type Answer = {
     createdAt: string
     updatedAt?: string
     accepted: boolean
+    votes: number
     questionId: string
+}
+
+// A vote this user has already cast. Votes are final, so the presence of a record is
+// what disables the buttons - there is no toggling.
+export type VoteRecord = {
+    targetId: string
+    targetType: 'question' | 'answer'
+    value: number
 }
 
 // Search hits come from Typesense, not the question database, and carry only the
@@ -46,9 +55,31 @@ export type SearchResult = {
     answerCount: number
 }
 
+// Usage over a rolling seven days, from StatsService. Unrelated to Tag.usageCount,
+// which is the all-time total and only ever grows.
+export type TrendingTag = {
+    tag: string
+    count: number
+}
+
+// Reputation gained over a rolling week, from StatsService. It knows ids only.
+export type TopUser = {
+    userId: string
+    gained: number
+}
+
+// A TopUser once the name has been resolved from ProfileService.
+export type RankedUser = {
+    gained: number
+    profile: Profile
+}
+
 export type Tag = {
     id: string
     name: string
     slug: string
     description: string
+    // Running total of questions carrying this tag. Trending tags are a different,
+    // time-windowed figure and come from StatsService.
+    usageCount: number
 }
