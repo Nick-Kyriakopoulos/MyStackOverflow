@@ -94,7 +94,7 @@ MyStackOverflow/
 │   └── realms/                 # Keycloak realm import JSON
 └── webapp/                     # Next.js frontend
     └── src/
-        ├── middleware.ts       # Fast signed-out redirect (NOT the security boundary)
+        ├── proxy.ts           # Fast signed-out redirect (NOT the security boundary)
         ├── auth.ts             # Auth.js v5 config + refresh rotation + ensureProfile
         ├── app/                # Next.js App Router pages
         ├── components/
@@ -337,7 +337,7 @@ Global tag list is cached client-side in Zustand (`src/lib/useTagStore.ts`). Loa
 
 ### Frontend — Route Protection
 
-`src/middleware.ts` redirects signed-out visitors away from `/questions/ask`,
+`src/proxy.ts` redirects signed-out visitors away from `/questions/ask`,
 `/questions/:id/edit` and `/profiles/:id/edit`. **It is not the security boundary.**
 Middleware cannot tell that a session's refresh token has died, and cannot know who
 owns a question — the page-level `getValidSession()` and ownership checks still do

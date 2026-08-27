@@ -1,9 +1,11 @@
 import {NextResponse} from "next/server";
 import {auth} from "@/auth";
 
+// Formerly middleware.ts - Next 16 deprecated that file convention in favour of proxy.
+//
 // A fast redirect for signed-out visitors, so protected pages never start rendering.
-// It is not the security boundary: middleware cannot tell that a session's refresh
-// token has died, and it cannot know who owns a question. The page-level
+// It is not the security boundary: this runs before rendering and cannot tell that a
+// session's refresh token has died, nor who owns a question. The page-level
 // getValidSession() and ownership checks still do that work.
 export default auth(req => {
     if (req.auth) return;
