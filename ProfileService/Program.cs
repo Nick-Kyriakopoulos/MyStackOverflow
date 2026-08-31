@@ -68,9 +68,30 @@ app.MapPost("/profiles/ensure", [Authorize] async (ClaimsPrincipal user, Profile
 
     if (profile is not null) return Results.Ok(profile);
 
-    profile = new Profile { Id = userId, DisplayName = name };
+    // Keycloak's name is not length-checked by anything upstream, and DisplayName is
+    // capped at 300 - a long one would otherwise fail here as an unhandled 500.
+    profile = new Profile { Id = userId, DisplayName = Truncate(name, 300) };
     db.Profiles.Add(profile);
-    await db.SaveChangesAsync();
+
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateException)
+    {
+        // Check-then-insert is a race: two tabs signing in at once, or a retried
+        // NextAuth callback, both read null and both insert. The loser hits the
+        // primary key and would surface a 500 for what is a successful outcome -
+        // the profile exists either way. VoteService handles its unique index the
+        // same way. Detached first, or the failed insert stays tracked and the
+        // reload below tries to add it again.
+        db.Entry(profile).State = EntityState.Detached;
+
+        var existing = await db.Profiles.FindAsync(userId);
+        if (existing is null) throw;
+
+        return Results.Ok(existing);
+    }
 
     return Results.Ok(profile);
 });
@@ -79,6 +100,20 @@ app.MapPut("/profiles/me", [Authorize] async (UpdateProfileDto dto, ClaimsPrinci
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
     if (userId is null) return Results.BadRequest("Cannot get user details");
+
+    // The zod schema in the web app caps these, but that only binds a browser: this
+    // endpoint is reachable directly with a bearer token. Without the check, an
+    // over-long value reaches a [MaxLength] column and comes back as an unhandled
+    // DbUpdateException - a 500 for what is plainly a bad request.
+    if (string.IsNullOrWhiteSpace(dto.DisplayName) || dto.DisplayName.Length > 300)
+    {
+        return Results.BadRequest("Display name must be between 1 and 300 characters");
+    }
+
+    if (dto.ImageUrl is {Length: > 500})
+    {
+        return Results.BadRequest("Image URL must be 500 characters or fewer");
+    }
 
     var profile = await db.Profiles.FindAsync(userId);
     if (profile is null) return Results.NotFound();
@@ -91,6 +126,12 @@ app.MapPut("/profiles/me", [Authorize] async (UpdateProfileDto dto, ClaimsPrinci
 
     return Results.Ok(profile);
 });
+
+// Keycloak controls neither of these lengths, so the value it hands us can exceed the
+// column. Truncating beats rejecting: the user cannot fix their token, and a clipped
+// display name is better than no profile at all.
+static string Truncate(string value, int max) =>
+    value.Length <= max ? value : value[..max];
 
 app.MapDefaultEndpoints();
 

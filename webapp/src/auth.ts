@@ -40,8 +40,11 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 // Keycloak owns registration and publishes nothing to RabbitMQ, so sign-in is the
 // only moment the app learns a user exists. The call is idempotent server-side, and
 // deliberately swallows its errors: a ProfileService outage must not block signing in.
-async function ensureProfile(accessToken?: string) {
-    if (!accessToken || !process.env.API_URL) return;
+//
+// Returns whether the profile now exists, so the caller can retry. Swallowing the
+// error is right; treating one failed attempt as final is not - see the jwt callback.
+async function ensureProfile(accessToken?: string): Promise<boolean> {
+    if (!accessToken || !process.env.API_URL) return false;
 
     try {
         const response = await fetch(`${process.env.API_URL}/profiles/ensure`, {
@@ -57,8 +60,11 @@ async function ensureProfile(accessToken?: string) {
                 `Could not create the user's profile: ${response.status} ${await response.text()}`
             );
         }
+
+        return response.ok;
     } catch (error) {
         console.error("Could not reach the profile service at sign-in", error);
+        return false;
     }
 }
 
@@ -78,10 +84,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async jwt({ token, account, profile }) {
             // Initial sign-in: persist the tokens Keycloak issued.
             if (account) {
-                await ensureProfile(account.access_token);
-
                 return {
                     ...token,
+                    profileEnsured: await ensureProfile(account.access_token),
                     // Keycloak's own user id. Without an adapter Auth.js puts a
                     // freshly generated uuid in token.sub, which matches nothing
                     // server-side - the API records this sub as AskerId.
@@ -95,6 +100,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Existing token that's still valid.
             if (token.expiresAt && Date.now() < token.expiresAt * 1000) {
+                // Retry until it takes. ProfileService being down for the one
+                // second the user signed in would otherwise leave them without a
+                // profile until they sign out and back in: every question and
+                // answer they post renders as "Unknown user", and the reputation
+                // handler drops their deltas because the row it updates is
+                // missing. Idempotent server-side, and skipped once it succeeds.
+                if (!token.profileEnsured) {
+                    return {...token, profileEnsured: await ensureProfile(token.accessToken)};
+                }
+
                 return token;
             }
 

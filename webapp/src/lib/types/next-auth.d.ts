@@ -26,5 +26,10 @@ declare module 'next-auth/jwt' {
         idToken?: string;
         expiresAt?: number;
         error?: string;
+        // False or absent means /profiles/ensure has not succeeded yet for this
+        // session, and the jwt callback keeps retrying it. Sign-in is the only
+        // moment the app hears about a new user, so giving up after one failed
+        // attempt strands them as "Unknown user" for the life of the session.
+        profileEnsured?: boolean;
     }
 }

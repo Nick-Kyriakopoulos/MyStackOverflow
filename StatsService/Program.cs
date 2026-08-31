@@ -1,6 +1,8 @@
 using Common;
+using JasperFx;
 using Marten;
 using StatsService.Models;
+using Wolverine.ErrorHandling;
 using Wolverine.Marten;
 using Wolverine.RabbitMQ;
 
@@ -22,6 +24,19 @@ builder.Services.AddMarten(opts =>
 await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
     opts.ListenToRabbitQueue("question.stats", cfg => cfg.BindExchange("questions"));
+
+    // Both handlers here are counters: load the day's document, add to it, store it.
+    // Marten's optimistic concurrency (see the documents) makes a concurrent write
+    // fail rather than silently overwrite, and this turns that failure into a retry
+    // that re-reads the committed value. Without it the exception would be the bug
+    // instead of the lost update - the cooldowns are short because the contended
+    // window is a single round trip.
+    opts.OnException<ConcurrencyException>()
+        .RetryWithCooldown(
+            TimeSpan.FromMilliseconds(50),
+            TimeSpan.FromMilliseconds(150),
+            TimeSpan.FromMilliseconds(400));
+
     opts.ApplicationAssembly = typeof(Program).Assembly;
 });
 

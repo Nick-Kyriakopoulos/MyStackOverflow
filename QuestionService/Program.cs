@@ -40,7 +40,15 @@ await builder.UseWolverineWithRabbitMqAsync(opts =>
     // This service now consumes as well as publishes: votes are cast elsewhere but
     // the tally lives here. Named for what it consumes rather than for the service,
     // since the other queues already read as question.<consumer>.
-    opts.ListenToRabbitQueue("question.votes", cfg => cfg.BindExchange("questions"));
+    // UseDurableInbox is what makes the handler safe to redeliver. RabbitMQ is
+    // at-least-once: if this service applies the tally and then dies before the ack
+    // reaches the broker, the same VoteCast arrives again, and the handler's
+    // Votes + VoteValue would run twice for one vote - awarding the author a second
+    // round of reputation too. The inbox persists each envelope id in questionDb and
+    // discards one it has already handled, which is cheaper and less error-prone than
+    // putting a vote id in the contract and deduplicating by hand.
+    opts.ListenToRabbitQueue("question.votes", cfg => cfg.BindExchange("questions"))
+        .UseDurableInbox();
 
     // Transactional outbox. Without it, a question saved while RabbitMQ is down keeps
     // its row but loses its event forever - the search index never learns about it.

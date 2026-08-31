@@ -32,12 +32,20 @@ export default function VotingButtons({
     const [isBusy, setIsBusy] = useState(false);
 
     const hasVoted = myVote !== undefined;
-    const disabled = isBusy || hasVoted || !isSignedIn || isAuthor;
 
     const reason = !isSignedIn ? 'Sign in to vote'
         : isAuthor ? 'You cannot vote on your own post'
         : hasVoted ? 'You have already voted on this'
         : undefined;
+
+    // The cases we can explain are marked aria-disabled rather than disabled. A
+    // genuinely disabled button fires no pointer events and cannot take focus, so
+    // the tooltip explaining *why* it is disabled never opened - in exactly the
+    // situations it exists for. aria-disabled conveys the same thing to assistive
+    // tech while leaving the button hoverable and focusable; onPress guards itself.
+    const blocked = reason !== undefined;
+    // Only the transient busy state is a real disable. Styling greys out both.
+    const disabled = isBusy || blocked;
 
     const onVote = async (value: 1 | -1) => {
         setIsBusy(true);
@@ -78,8 +86,12 @@ export default function VotingButtons({
                 isIconOnly
                 variant={'ghost'}
                 aria-label={label}
-                isDisabled={disabled}
-                onPress={() => onVote(direction)}
+                isDisabled={isBusy}
+                aria-disabled={blocked || undefined}
+                onPress={() => {
+                    if (blocked) return;
+                    void onVote(direction);
+                }}
                 className={clsx('border-0', {
                     'text-green-900 hover:text-green-700 dark:text-purple-400 dark:hover:text-purple-300': !disabled,
                     'text-neutral-400 dark:text-gray-600': disabled,
@@ -92,7 +104,12 @@ export default function VotingButtons({
         );
 
         return reason
-            ? <Tooltip><Tooltip.Trigger>{button}</Tooltip.Trigger><Tooltip.Content>{reason}</Tooltip.Content></Tooltip>
+            ? (
+                <Tooltip>
+                    <Tooltip.Trigger>{button}</Tooltip.Trigger>
+                    <Tooltip.Content>{reason}</Tooltip.Content>
+                </Tooltip>
+            )
             : button;
     };
 
