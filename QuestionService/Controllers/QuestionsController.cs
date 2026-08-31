@@ -10,14 +10,20 @@ using QuestionService.DTOs;
 using QuestionService.Models;
 using QuestionService.Services;
 using Reputation;
-using Wolverine;
+using Wolverine.EntityFrameworkCore;
 
 namespace QuestionService.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagService tagService) : ControllerBase
+// Takes the outbox rather than a DbContext and an IMessageBus. Publishing through it
+// enrols the message in the same transaction as the save, so a crash between the two
+// cannot leave a row without its event. UseEntityFrameworkCoreTransactions does this
+// automatically for Wolverine handlers, but never for controllers.
+public class QuestionsController(IDbContextOutbox<QuestionDbContext> outbox, TagService tagService) : ControllerBase
 {
+    private readonly QuestionDbContext db = outbox.DbContext;
+
     [Authorize]
     [HttpPost]
     public async Task<ActionResult<Question>> CreateQuestion(CreateQuestionDto dto)
@@ -37,19 +43,22 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         };
         
         db.Questions.Add(question);
-        await db.SaveChangesAsync();
+
+        // Queued before the save so both commit together. The id is client-generated,
+        // so it is already known here.
+        await outbox.PublishAsync(new QuestionCreated(
+            question.Id, question.Title,
+            question.Content, question.CreatedAt,
+            question.TagSlugs
+        ));
+
+        await outbox.SaveChangesAndFlushMessagesAsync();
 
         // Deliberately after the save and outside its transaction: the question is the
         // part that must not be lost, and a tag counter that drifts by one is cheap.
         await db.Tags.Where(t => dto.Tags.Contains(t.Slug))
             .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount + 1));
 
-        await bus.PublishAsync(new QuestionCreated(
-            question.Id, question.Title,
-            question.Content, question.CreatedAt,
-            question.TagSlugs
-        )); 
-        
         return Created($"/questions/{question.Id}", question);
     }
     
@@ -122,7 +131,10 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         question.TagSlugs = dto.Tags;
         question.UpdatedAt = DateTime.UtcNow;
 
-        await db.SaveChangesAsync();
+        await outbox.PublishAsync(new QuestionUpdated(question.Id, question.Title,
+            question.Content, question.TagSlugs.AsArray()));
+
+        await outbox.SaveChangesAndFlushMessagesAsync();
 
         if (removed.Length > 0)
         {
@@ -139,9 +151,6 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
                 .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount + 1));
         }
 
-        await bus.PublishAsync(new QuestionUpdated(question.Id, question.Title,
-            question.Content, question.TagSlugs.AsArray()));
-        
         return NoContent();
     }
 
@@ -158,13 +167,13 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         var tags = question.TagSlugs.ToArray();
 
         db.Questions.Remove(question);
-        await db.SaveChangesAsync();
+
+        await outbox.PublishAsync(new QuestionDeleted(question.Id));
+        await outbox.SaveChangesAndFlushMessagesAsync();
 
         await db.Tags.Where(t => tags.Contains(t.Slug) && t.UsageCount > 0)
             .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsageCount, t => t.UsageCount - 1));
 
-        await bus.PublishAsync(new QuestionDeleted(question.Id));
-        
         return NoContent();
     }
     
@@ -186,11 +195,10 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         
         question.Answers.Add(answer);
         question.AnswerCount++;
-        
-        await db.SaveChangesAsync();
-        
-        await bus.PublishAsync(new AnswerCountUpdated(questionId, question.AnswerCount));
-        
+
+        await outbox.PublishAsync(new AnswerCountUpdated(questionId, question.AnswerCount));
+        await outbox.SaveChangesAndFlushMessagesAsync();
+
         return Created($"/questions/{questionId}", answer);
     }
     
@@ -226,11 +234,10 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
 
         db.Answers.Remove(answer);
         question.AnswerCount--;
-        
-        await db.SaveChangesAsync();
-        
-        await bus.PublishAsync(new AnswerCountUpdated(questionId, question.AnswerCount));
-        
+
+        await outbox.PublishAsync(new AnswerCountUpdated(questionId, question.AnswerCount));
+        await outbox.SaveChangesAndFlushMessagesAsync();
+
         return NoContent();
     }
     
@@ -250,13 +257,19 @@ public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagServi
         answer.Accepted = true;
         question.HasAcceptedAnswer = true;
 
-        await db.SaveChangesAsync();
+        await outbox.PublishAsync(new AnswerAccepted(questionId));
 
-        await bus.PublishAsync(new AnswerAccepted(questionId));
+        // The answer's author earns the reputation, not whoever accepted it - and
+        // accepting your own answer earns nothing. Without this an asker could answer
+        // their own question and award themselves 15 points, repeatedly. Mirrors the
+        // self-vote guard in VoteCastHandler.
+        if (answer.UserId != actorId)
+        {
+            await outbox.PublishAsync(
+                ReputationHelper.MakeEvent(answer.UserId, ReputationReason.AnswerAccepted, actorId));
+        }
 
-        // The answer's author earns the reputation, not whoever accepted it.
-        await bus.PublishAsync(
-            ReputationHelper.MakeEvent(answer.UserId, ReputationReason.AnswerAccepted, actorId));
+        await outbox.SaveChangesAndFlushMessagesAsync();
         
         return NoContent();
     }

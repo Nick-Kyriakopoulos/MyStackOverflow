@@ -258,6 +258,18 @@ QuestionService and VoteService publish through a **transactional outbox**
 own database in the same transaction as the entity and forwarded once the broker is
 reachable, so a broker outage no longer silently loses events.
 
+**Configuration alone does not achieve this, and the failure is silent.**
+`UseEntityFrameworkCoreTransactions()` auto-enlists Wolverine *message handlers* only.
+A controller or minimal-API endpoint must take `IDbContextOutbox<TContext>`, use
+`outbox.DbContext` as its context, publish through `outbox.PublishAsync`, and commit
+with `outbox.SaveChangesAndFlushMessagesAsync()`. Injecting `IMessageBus` alongside a
+`DbContext` compiles, creates the `wolverine_*` tables, and looks entirely correct while
+giving no atomicity at all — the save and the publish are separate transactions. This
+was shipped that way in Section 13 and caught in review afterwards.
+
+`UpdateAnswer` still calls `db.SaveChangesAsync()` directly, which is right: it
+publishes nothing.
+
 Those two register their `DbContext` by hand rather than with `AddNpgsqlDbContext`,
 because Wolverine's EF integration **requires the options to be a singleton**. The
 trade-off is losing Aspire's DbContext health check. Do not "tidy" it back.
@@ -413,7 +425,6 @@ Seeded tags (slugs): `aspire`, `keycloak`, `dotnet`, `ef-core`, `wolverine`, `po
   running containers reflect the code in front of you.
 - Dev and production Keycloak are **separate realms**. An account in one does not exist
   in the other.
-
 ---
 
 <!-- HEROUI-REACT-AGENTS-MD-START -->

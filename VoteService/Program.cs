@@ -47,9 +47,12 @@ app.UseAuthorization();
 app.MapPost("/votes", [Authorize] async (
     CastVoteDto dto,
     ClaimsPrincipal user,
-    VoteDbContext db,
-    IMessageBus bus) =>
+    // The outbox, not IMessageBus + VoteDbContext. UseEntityFrameworkCoreTransactions
+    // only enlists Wolverine *handlers* automatically; an HTTP endpoint has to ask for
+    // the outbox explicitly, or the save and the publish are two separate transactions.
+    IDbContextOutbox<VoteDbContext> outbox) =>
 {
+    var db = outbox.DbContext;
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
     if (userId is null) return Results.BadRequest("Cannot get user details");
 
@@ -72,19 +75,22 @@ app.MapPost("/votes", [Authorize] async (
         Value = dto.VoteValue
     });
 
+    // QuestionService updates the tally and awards the reputation - it is the only
+    // service that authoritatively knows who wrote the target. Published before the
+    // save so it is enrolled in the same transaction, then flushed once it commits.
+    await outbox.PublishAsync(new VoteCast(dto.TargetId, targetType, dto.VoteValue, userId));
+
     try
     {
-        await db.SaveChangesAsync();
+        // Commits the vote and the queued message together, then hands the message to
+        // the broker. A crash between the two leaves the message in voteDb, not lost.
+        await outbox.SaveChangesAndFlushMessagesAsync();
     }
     catch (DbUpdateException)
     {
         // The unique index caught a race the check above could not.
         return Results.Conflict("You have already voted on this");
     }
-
-    // QuestionService updates the tally and awards the reputation - it is the only
-    // service that authoritatively knows who wrote the target.
-    await bus.PublishAsync(new VoteCast(dto.TargetId, targetType, dto.VoteValue, userId));
 
     return Results.Ok();
 });
