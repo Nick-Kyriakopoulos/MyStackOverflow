@@ -425,6 +425,27 @@ Seeded tags (slugs): `aspire`, `keycloak`, `dotnet`, `ef-core`, `wolverine`, `po
   running containers reflect the code in front of you.
 - Dev and production Keycloak are **separate realms**. An account in one does not exist
   in the other.
+- `KC_HOSTNAME` needs `KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true` beside it. Pinning the
+  hostname stamps the public https URL into *every* entry of the discovery document,
+  `jwks_uri` included, so the .NET services fetch the document over the compose network
+  and then follow `jwks_uri` back out to `id.mystackoverflow.local` — where our
+  self-signed CA is not in their trust store. Every token then fails with
+  `UntrustedRoot`, which surfaces as a 401 from profile-svc and a page stuck on its
+  loading skeleton, not as an obvious TLS error. Dynamic backchannel resolution answers
+  internal callers with internal URLs and leaves the browser-facing issuer public. The
+  webapp escapes this only because node has `NODE_EXTRA_CA_CERTS`; .NET has no
+  equivalent env var, so the alternative is mounting and installing the CA in four
+  containers.
+- **A reused `postgres-data` volume does not gain databases added since it was created.**
+  `AddDatabase` only creates them on a fresh volume, so a service added in a later
+  section starts against a volume that predates it and dies at boot with
+  `3D000: database "xDb" does not exist` — how stats-svc behaved on the first deploy
+  after Section 12. Create the database by hand (`createdb`) or start from a fresh
+  volume; the surrounding services come up fine and hide it until a page 503s.
+  Postgres folds unquoted identifiers to lowercase, so `psql -c 'CREATE DATABASE "xDb"'`
+  through a Windows shell can silently yield `xdb` — `createdb -U postgres xDb` takes the
+  name as an argument and survives every shell.
+
 ---
 
 <!-- HEROUI-REACT-AGENTS-MD-START -->

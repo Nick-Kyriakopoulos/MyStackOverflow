@@ -18,6 +18,16 @@ var keycloak = builder.AddKeycloak("keycloak", 6001)
     // with how Keycloak was reached (container name vs public host) and the
     // token fails validation in the API and in NextAuth.
     .WithEnvironment("KC_HOSTNAME", "https://id.mystackoverflow.local")
+    // KC_HOSTNAME alone stamps the public https URL into *every* endpoint of the
+    // discovery document, jwks_uri included. The .NET services fetch that document
+    // over the compose network but then follow jwks_uri out to the public host,
+    // where our self-signed CA is not in their trust store, and every token fails
+    // validation with UntrustedRoot - surfacing as a 401 and a hung page. Dynamic
+    // backchannel resolution answers internal callers with internal URLs, so only
+    // the browser-facing issuer stays public. Without it each backend container
+    // would need the CA mounted and installed, which the webapp does via
+    // NODE_EXTRA_CA_CERTS but .NET has no equivalent env var for.
+    .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
     .WithEnvironment("KC_PROXY_HEADERS", "xforwarded");
 
 var postgres = builder.AddPostgres("postgres", port: 5432)
