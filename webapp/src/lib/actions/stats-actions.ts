@@ -6,20 +6,26 @@ import {getProfiles} from "@/lib/actions/profile-actions";
 
 // Trending is a rolling seven-day figure, so it barely moves within an hour and it
 // renders on every question list. Cached rather than recomputed per request.
+//
+// Both sidebar widgets sit on the questions page with no error boundary of their own,
+// and fetchClient throws on a 500. Left uncaught, a StatsService outage would crash
+// the whole page over a sidebar nicety - so this degrades to an "unavailable" state
+// instead of propagating the throw.
 export async function getTrendingTags() {
-    return fetchClient<TrendingTag[]>('/stats/trending-tags', 'GET', {
-        cache: 'force-cache',
-        next: {revalidate: 300},
-    });
+    try {
+        return await fetchClient<TrendingTag[]>('/stats/trending-tags', 'GET', {
+            cache: 'force-cache',
+            next: {revalidate: 300},
+        });
+    } catch {
+        return {data: null, error: {message: 'Trending tags are unavailable right now.', status: 503}};
+    }
 }
 
 // StatsService returns ids and scores; the names live in ProfileService. Same batched
 // enrichment as question authors, so the sidebar costs one extra call, not five.
 export async function getTopUsers() {
-    const {data: rows, error} = await fetchClient<TopUser[]>('/stats/top-users', 'GET', {
-        cache: 'force-cache',
-        next: {revalidate: 300},
-    });
+    const {data: rows, error} = await getTopUsersRaw();
 
     if (!rows || rows.length === 0) return {data: [] as RankedUser[], error};
 
@@ -33,4 +39,14 @@ export async function getTopUsers() {
     }));
 
     return {data: ranked, error: undefined};
+}
+
+function getTopUsersRaw() {
+    return fetchClient<TopUser[]>('/stats/top-users', 'GET', {
+        cache: 'force-cache',
+        next: {revalidate: 300},
+    }).catch(() => ({
+        data: null,
+        error: {message: 'Top users are unavailable right now.', status: 503},
+    }));
 }

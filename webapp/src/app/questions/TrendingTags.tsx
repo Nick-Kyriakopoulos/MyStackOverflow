@@ -3,7 +3,7 @@ import {getTrendingTags} from "@/lib/actions/stats-actions";
 import Panel from "@/components/layout/Panel";
 
 export default async function TrendingTags() {
-    const {data: tags} = await getTrendingTags();
+    const {data: tags, error} = await getTrendingTags();
 
     return (
         <Panel>
@@ -11,7 +11,11 @@ export default async function TrendingTags() {
                 Trending this week
             </h2>
 
-            {!tags || tags.length === 0 ? (
+            {error ? (
+                <p className={'mt-3 text-sm leading-6 text-neutral-600 dark:text-gray-300'}>
+                    {error.message}
+                </p>
+            ) : !tags || tags.length === 0 ? (
                 // An empty state here is normal, not a failure: nothing has been tagged
                 // in the last seven days. Say so plainly rather than showing a blank box.
                 <p className={'mt-3 text-sm leading-6 text-neutral-600 dark:text-gray-300'}>
