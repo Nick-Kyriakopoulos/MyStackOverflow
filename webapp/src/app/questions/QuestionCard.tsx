@@ -16,7 +16,7 @@ export default function QuestionCard({question}: Props) {
             <div className={'flex min-w-28 flex-row gap-3 text-sm md:flex-col md:items-end'}>
                 <div className={'rounded-2xl bg-stone-100 px-3 py-2 text-right dark:bg-gray-800'}>
                     <div className={'text-lg font-semibold'}>{question.votes}</div>
-                    <div className={'text-xs text-neutral-500 dark:text-gray-400'}>{question.votes === 1 ? 'vote' : 'votes'}</div>
+                    <div className={'text-xs text-neutral-600 dark:text-gray-400'}>{question.votes === 1 ? 'vote' : 'votes'}</div>
                 </div>
                 <div className={clsx('rounded-2xl px-3 py-2 text-right', answerCountStyles(question.answerCount, question.hasAcceptedAnswer))}>
                     <span className={'flex items-center justify-end gap-2 text-lg font-semibold'}>
@@ -29,7 +29,7 @@ export default function QuestionCard({question}: Props) {
                 </div>
                 <div className={'rounded-2xl bg-stone-100 px-3 py-2 text-right dark:bg-gray-800'}>
                     <div className={'text-lg font-semibold'}>{question.viewCount}</div>
-                    <div className={'text-xs text-neutral-500 dark:text-gray-400'}>{question.viewCount === 1 ? 'view' : 'views'}</div>
+                    <div className={'text-xs text-neutral-600 dark:text-gray-400'}>{question.viewCount === 1 ? 'view' : 'views'}</div>
                 </div>
             </div>
             <div className={'flex flex-1 min-h-32 gap-4'}>

@@ -6,6 +6,6 @@ export function answerCountStyles(answerCount: number, hasAcceptedAnswer: boolea
     return {
         'bg-stone-100 dark:bg-gray-800': answerCount === 0,
         'border border-green-600/40 bg-green-50 text-green-800 dark:border-purple-500/50 dark:bg-purple-500/10 dark:text-purple-200': answerCount > 0,
-        'border border-green-600 bg-green-600 text-white dark:border-purple-600 dark:bg-purple-600': hasAcceptedAnswer,
+        'border border-green-700 bg-green-700 text-white dark:border-purple-600 dark:bg-purple-600': hasAcceptedAnswer,
     };
 }

@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import {HomeIcon, QuestionMarkCircleIcon, TagIcon, UserIcon} from "@heroicons/react/24/solid";
+import {HomeIcon, QuestionMarkCircleIcon, TagIcon} from "@heroicons/react/24/solid";
 import {usePathname} from "next/navigation";
 import Link from "next/link";
 
@@ -10,7 +10,6 @@ export default function SideMenu() {
         {key: 'home', icon: HomeIcon, text: 'Home', href: '/'},
         {key: 'questions', icon: QuestionMarkCircleIcon, text: 'Questions', href: '/questions'},
         {key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'},
-        {key: 'session', icon: UserIcon, text: 'User Session', href: '/session'}
     ]
 
     return (
@@ -21,7 +20,7 @@ export default function SideMenu() {
                     href={href}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-base transition-colors
                         ${pathname === href
-                            ? 'text-green-900 font-semibold bg-green-900/10 dark:text-purple-400 dark:bg-purple-400/10'
+                            ? 'text-green-900 font-semibold bg-green-900/10 dark:text-purple-300 dark:bg-purple-400/10'
                             : 'text-gray-600 dark:text-gray-400 hover:text-green-900 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                         }`}
                 >
